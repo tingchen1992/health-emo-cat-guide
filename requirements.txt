@@ -1,0 +1,18 @@
+# 網頁介面
+streamlit>=1.28.0
+
+# 資料處理
+pandas>=2.0.0
+numpy>=1.24.0
+
+# 圖片處理（生成/顯示）
+pillow>=10.0.0
+
+# HTTP 請求（抓資料或 API call）
+requests>=2.31.0
+
+# AI / LLM
+openai>=1.0
+
+# 環境變數管理
+python-dotenv>=1.0
