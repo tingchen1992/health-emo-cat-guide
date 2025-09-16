@@ -26,13 +26,16 @@
 ```bash
 # 1. Clone專案
 git clone https://github.com/你的GitHub用戶名/health-emo-cat-guide.git
-
-# 2. 進入專案資料夾
 cd health-emo-cat-guide
+
+# 2. 建立虛擬環境
+python -m venv venv
+source venv/bin/activate    # Mac/Linux
+venv\Scripts\activate       # Windows PowerShell
 
 # 3. 安裝套件
 pip install -r requirements.txt
 
-# 4. 執行應用
-streamlit run streamlit_app.py
+# 4. 設定環境變數
+將 .env.example 複製為 .env 並填入金鑰
 ```
