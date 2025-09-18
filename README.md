@@ -29,7 +29,7 @@
 python --version  # 應顯示 3.10.x
 
 # 1. Clone 專案
-git clone https://github.com/你的GitHub用戶名/health-emo-cat-guide.git
+git clone https://github.com/tingchen1992/health-emo-cat-guide.git
 cd health-emo-cat-guide
 
 # 2. 建立虛擬環境
