@@ -25,8 +25,8 @@
 ## 🚀 快速開始
 ```bash
 # 0. 建議 Python 版本
-# 請統一使用 Python 3.12，確保套件兼容性
-python --version  # 應顯示 3.12.x
+# 請統一使用 Python 3.10，確保套件兼容性
+python --version  # 應顯示 3.10.x
 
 # 1. Clone 專案
 git clone https://github.com/你的GitHub用戶名/health-emo-cat-guide.git
