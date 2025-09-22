@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>我們的九宮格貓咪 - Meow Yourself</title>
+    <style>
+        @import url(https://fonts.googleapis.com/css2?family=Lato&display=swap);
+        @import url(https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap);
+        @import url(https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200);
+        
+        *, :after, :before {
+            border: 0 solid #e5e7eb;
+            box-sizing: border-box;
+        }
+        
+        body {
+            line-height: inherit;
+            margin: 0;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            font-family: 'Open Sans', ui-sans-serif, system-ui, sans-serif;
+        }
+        
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 16px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* 容器樣式 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* 頁首樣式 */
+        .header {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 16px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            color: #374151;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 20px;
+        }
+        
+        .logo svg {
+            height: 24px;
+            width: 24px;
+            margin-right: 8px;
+        }
+        
+        .nav {
+            display: flex;
+            gap: 24px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            color: #6b7280;
+            text-decoration: none;
+            transition: color 0.2s;
+            font-weight: 500;
+        }
+        
+        .nav-item:hover {
+            color: #374151;
+        }
+        
+        .nav-item .material-symbols-outlined {
+            margin-right: 4px;
+            font-size: 20px;
+        }
+        
+        /* 主要內容區域 */
+        .main-content {
+            padding: 60px 0;
+        }
+        
+        .page-title {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .page-title h1 {
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0 0 12px 0;
+        }
+        
+        .page-subtitle {
+            font-size: 18px;
+            color: #64748b;
+            max-width: 600px;
+            margin: 0 auto 50px;
+            line-height: 1.6;
+        }
+        
+        /* 貓咪卡片網格 */
+        .cats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+        
+        .cat-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .cat-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .cat-image {
+            height: 240px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .cat-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        
+        .cat-card:hover .cat-image img {
+            transform: scale(1.05);
+        }
+        
+        .cat-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .cat-content {
+            padding: 20px;
+        }
+        
+        .cat-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+        
+        .cat-description {
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+        
+        .cat-traits {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .trait-item {
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+            color: #64748b;
+        }
+        
+        .trait-item .material-symbols-outlined {
+            color: #667eea;
+            margin-right: 4px;
+            font-size: 14px;
+        }
+        
+        /* 底部行動區塊 */
+        .bottom-cta {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .cta-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 12px;
+        }
+        
+        .cta-description {
+            color: #64748b;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+        
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 32px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* 登入狀態提示 */
+        .login-hint {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-top: 16px;
+            color: #667eea;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .login-hint .material-symbols-outlined {
+            font-size: 18px;
+        }
+        
+        /* 貓咪選擇效果 */
+        .cat-card.selected {
+            border: 3px solid #667eea;
+            box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.3);
+        }
+        
+        .cat-card.selected .cat-badge {
+            background: #667eea;
+            color: white;
+        }
+        
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            .nav {
+                display: none;
+            }
+            
+            .page-title h1 {
+                font-size: 32px;
+            }
+            
+            .cats-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            
+            .main-content {
+                padding: 40px 0;
+            }
+            
+            .cat-image {
+                height: 200px;
+            }
+            
+            .bottom-cta {
+                padding: 24px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 0 16px;
+            }
+            
+            .cats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .cat-card {
+                margin: 0;
+            }
+        }
+    </style>
+    <link rel="icon" href="/static/favicon.ico" />
+    <meta name="theme-color" content="#667eea" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Meow Yourself" />
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2C14.5 2 16.5 4 16.5 6.5C16.5 9 14.5 11 12 11C9.5 11 7.5 9 7.5 6.5C7.5 4 9.5 2 12 2Z"></path>
+                        <path d="M5 20C5 16.5 8 14 12 14C16 14 19 16.5 19 20"></path>
+                        <path d="M12 14L12 22M9 17L15 19M9 19L15 17"></path>
+                    </svg>
+                    Meow Yourself
+                </a>
+                <nav class="nav">
+                    <a href="/" class="nav-item">
+                        <span class="material-symbols-outlined">home</span> 首頁
+                    </a>
+                    <a href="/featured_cats" class="nav-item">
+                        <span class="material-symbols-outlined">pets</span> 九宮格貓咪
+                    </a>
+                    {% if is_logged_in %}
+                        <a href="/logout" class="nav-item">
+                            <span class="material-symbols-outlined">logout</span> 登出
+                        </a>
+                    {% else %}
+                        <a href="/login" class="nav-item">
+                            <span class="material-symbols-outlined">login</span> 登入
+                        </a>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="page-title">
+                <h1>我們的九宮格貓咪</h1>
+                <p class="page-subtitle">
+                    探索九種不同性格的可愛貓咪，每一隻都有獨特的個性特質和魅力。找到與你最相似的貓咪夥伴！
+                </p>
+            </div>
+
+            <div class="cats-grid">
+                <!-- 貓咪 1: 好奇探險家 -->
+                <div class="cat-card" onclick="selectCat(this, '好奇探險家')">
+                    <div class="cat-image">
+                        <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="好奇探險家">
+                        <div class="cat-badge">冒險型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">好奇探險家</h3>
+                        <p class="cat-description">
+                            充滿活力與好奇心，總是在尋找新的體驗。喜歡探索未知的領域，勇於嘗試新事物。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">favorite</span>
+                                活躍好動
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">psychology</span>
+                                外向開朗
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">bolt</span>
+                                精力充沛
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">auto_awesome</span>
+                                富有創意
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 2: 智慧觀察者 -->
+                <div class="cat-card" onclick="selectCat(this, '智慧觀察者')">
+                    <div class="cat-image">
+                        <img src="https://images.unsplash.com/photo-1573865526739-10659fec78a5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="智慧觀察者">
+                        <div class="cat-badge">分析型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">智慧觀察者</h3>
+                        <p class="cat-description">
+                            深思熟慮，善於觀察和分析。在做決定前總是會仔細思考，擁有深刻的洞察力。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">smart_toy</span>
+                                理智聰明
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">psychology</span>
+                                內向沉穩
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">lightbulb</span>
+                                策略思考
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">balance</span>
+                                平衡理性
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 3: 社交蝴蝶 -->
+                <div class="cat-card" onclick="selectCat(this, '社交蝴蝶')">
+                    <div class="cat-image">
+                        <img src="https://images.unsplash.com/photo-1533738363-b7f9aef128ce?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="社交蝴蝶">
+                        <div class="cat-badge">友善型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">社交蝴蝶</h3>
+                        <p class="cat-description">
+                            外向友善，善於交際。在社交場合中如魚得水，喜歡與他人建立聯繫和友誼。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">groups</span>
+                                社交達人
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">sentiment_satisfied</span>
+                                樂觀積極
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">emoji_people</span>
+                                魅力十足
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">volunteer_activism</span>
+                                富有同情心
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 4: 溫柔療癒師 -->
+                <div class="cat-card" onclick="selectCat(this, '溫柔療癒師')">
+                    <div class="cat-image">
+                        <img src="https://images.unsplash.com/photo-1596854407944-bf87f6fdd49e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="溫柔療癒師">
+                        <div class="cat-badge">療癒型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">溫柔療癒師</h3>
+                        <p class="cat-description">
+                            性格溫和，具有療癒人心的力量。總是能給身邊的人帶來安慰和溫暖，是最佳的傾聽者。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">healing</span>
+                                療癒能力
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">favorite_border</span>
+                                溫柔體貼
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">self_care</span>
+                                關懷他人
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">spa</span>
+                                平靜安詳
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 5: 獨立思考家 -->
+                <div class="cat-card" onclick="selectCat(this, '獨立思考家')">
+                    <div class="cat-image">
+                        <img src="https://images.unsplash.com/photo-1571566882372-1598d88abd90?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="獨立思考家">
+                        <div class="cat-badge">獨立型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">獨立思考家</h3>
+                        <p class="cat-description">
+                            喜歡獨處和思考，有自己的節奏和想法。不隨波逐流，堅持自己的原則和信念。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">person</span>
+                                獨立自主
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">thinking</span>
+                                深度思考
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">shield</span>
+                                堅持原則
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">psychology_alt</span>
+                                內省深刻
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 6: 活力運動員 -->
+                <div class="cat-card" onclick="selectCat(this, '活力運動員')">
+                    <div class="cat-image">
+                        <img src="https://images.unsplash.com/photo-1574231164645-d6f0e8553590?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="活力運動員">
+                        <div class="cat-badge">運動型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">活力運動員</h3>
+                        <p class="cat-description">
+                            精力旺盛，熱愛運動和挑戰。總是保持積極的態度，喜歡透過身體活動來釋放能量。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">fitness_center</span>
+                                運動健將
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">energy_savings_leaf</span>
+                                活力無限
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">trophy</span>
+                                競爭精神
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">trending_up</span>
+                                積極進取
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 7: 藝術創作者 -->
+                <div class="cat-card" onclick="selectCat(this, '藝術創作者')">
+                    <div class="cat-image">
+                        <img src="https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="藝術創作者">
+                        <div class="cat-badge">藝術型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">藝術創作者</h3>
+                        <p class="cat-description">
+                            富有藝術天賦和創造力，能從平凡中發現美。喜歡用獨特的方式表達自己的想法和情感。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">palette</span>
+                                藝術天賦
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">brush</span>
+                                創意無限
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">star</span>
+                                獨特視角
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">colorize</span>
+                                感性豐富
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 8: 守護保衛者 -->
+                <div class="cat-card" onclick="selectCat(this, '守護保衛者')">
+                    <div class="cat-image">
+                        <img src="https://images.unsplash.com/photo-1592194996308-7b43878e84a6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="守護保衛者">
+                        <div class="cat-badge">保護型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">守護保衛者</h3>
+                        <p class="cat-description">
+                            忠誠可靠，有強烈的保護慾。總是守護著重要的人事物，是值得信賴的夥伴和朋友。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">security</span>
+                                忠誠守護
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">verified</span>
+                                值得信賴
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">shield_person</span>
+                                保護他人
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">handshake</span>
+                                責任感強
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 9: 夢想實踐者 -->
+                <div class="cat-card" onclick="selectCat(this, '夢想實踐者')">
+                    <div class="cat-image">
+                        <img src="https://images.unsplash.com/photo-1506891536236-3e07892564b7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="夢想實踐者">
+                        <div class="cat-badge">實踐型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">夢想實踐者</h3>
+                        <p class="cat-description">
+                            有遠大的夢想和目標，並且會努力實現。不只是空想家，更是行動派，勇於追求理想。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">rocket_launch</span>
+                                追求夢想
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">target</span>
+                                目標明確
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">construction</span>
+                                實際行動
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">celebration</span>
+                                樂觀進取
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部行動呼籲 -->
+            <div class="bottom-cta">
+                <h2 class="cta-title">找到你的專屬貓咪夥伴</h2>
+                <p class="cta-description">
+                    上傳你的健康報告，完成心理測驗，讓 AI 為你量身打造獨一無二的貓咪性格卡片！
+                </p>
+                {% if is_logged_in %}
+                    <a href="/upload_health" class="cta-button">
+                        <span class="material-symbols-outlined">pets</span>
+                        開始創造我的貓咪
+                    </a>
+                {% else %}
+                    <a href="/login" class="cta-button">
+                        <span class="material-symbols-outlined">login</span>
+                        登入後開始創造我的貓咪
+                    </a>
+                    <div class="login-hint">
+                        <span class="material-symbols-outlined">info</span>
+                        請先登入或註冊帳號，開始您的貓咪個性化之旅！
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let selectedCat = null;
+        
+        function selectCat(element, catName) {
+            // 移除之前選中的狀態
+            const previousSelected = document.querySelector('.cat-card.selected');
+            if (previousSelected) {
+                previousSelected.classList.remove('selected');
+            }
+            
+            // 添加選中狀態
+            element.classList.add('selected');
+            selectedCat = catName;
+            
+            // 顯示選擇提示
+            const message = `您選擇了：${catName}\n\n這隻貓咪的特質將會在生成您的個人化圖卡時參考！`;
+            
+            // 創建自定義提示框
+            showCustomAlert(message, catName);
+        }
+        
+        function showCustomAlert(message, catName) {
+            // 創建提示框
+            const alertDiv = document.createElement('div');
+            alertDiv.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                border-radius: 16px;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+                padding: 30px;
+                z-index: 1000;
+                max-width: 400px;
+                width: 90%;
+                text-align: center;
+                animation: fadeInScale 0.3s ease-out;
+            `;
+            
+            alertDiv.innerHTML = `
+                <div style="color: #667eea; font-size: 48px; margin-bottom: 16px;">🐱</div>
+                <h3 style="color: #1e293b; font-size: 20px; font-weight: 700; margin-bottom: 12px;">
+                    已選擇：${catName}
+                </h3>
+                <p style="color: #64748b; line-height: 1.6; margin-bottom: 20px;">
+                    這隻貓咪的特質將會在生成您的個人化圖卡時參考！
+                </p>
+                <button onclick="closeAlert()" style="
+                    background: linear-gradient(135deg, #667eea, #764ba2);
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 25px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                ">
+                    知道了
+                </button>
+            `;
+            
+            // 創建背景遮罩
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+                animation: fadeIn 0.3s ease-out;
+            `;
+            
+            // 添加動畫樣式
+            if (!document.querySelector('#custom-alert-styles')) {
+                const style = document.createElement('style');
+                style.id = 'custom-alert-styles';
+                style.textContent = `
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes fadeInScale {
+                        from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                        to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.appendChild(overlay);
+            document.body.appendChild(alertDiv);
+            
+            // 點擊遮罩關閉
+            overlay.onclick = closeAlert;
+            
+            // 保存引用以便關閉
+            window.currentAlert = { alertDiv, overlay };
+        }
+        
+        function closeAlert() {
+            if (window.currentAlert) {
+                document.body.removeChild(window.currentAlert.overlay);
+                document.body.removeChild(window.currentAlert.alertDiv);
+                window.currentAlert = null;
+            }
+        }
+        
+        // 添加卡片動畫效果
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.cat-card');
+            
+            // 為卡片添加進入動畫
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(30px)';
+                card.style.transition = 'all 0.6s ease';
+                
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+        
+        // 滾動時的視差效果
+        window.addEventListener('scroll', function() {
+            const scrolled = window.pageYOffset;
+            const rate = scrolled * -0.5;
+            const header = document.querySelector('.header');
+            
+            if (header) {
+                header.style.transform = `translateY(${rate * 0.1}px)`;
+            }
+        });
+    </script>
+</body>
+</html>
