@@ -9,10 +9,10 @@
 - 智能文字回饋系統
 
 ## 🛠 技術棧
-- **前端**: Streamlit
+- **前端**: HTML
 - **後端**: Python
-- **資料庫**: 待定
-- **部署**: Streamlit Cloud 或 Google Cloud Run
+- **資料庫**: Firestore - Firebase
+- **部署**: Google Cloud Run
 - **AI**: 圖像/文字生成 API
 
 ## 👥 團隊成員
@@ -25,8 +25,8 @@
 ## 🚀 快速開始
 ```bash
 # 0. 建議 Python 版本
-# 請統一使用 Python 3.10，確保套件兼容性
-python --version  # 應顯示 3.10.x
+# 請統一使用 Python 3.12，確保套件兼容性
+python --version  # 應顯示 3.12.x
 
 # 1. Clone 專案
 git clone https://github.com/tingchen1992/health-emo-cat-guide.git
