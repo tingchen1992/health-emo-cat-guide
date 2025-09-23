@@ -5,20 +5,27 @@ from firebase_admin.exceptions import FirebaseError
 import os
 from datetime import datetime
 import logging
+from health_report_module import analyze_health_report
+from google.cloud.firestore import SERVER_TIMESTAMP
 
 app = Flask(__name__)
-app.secret_key = "your-secret-key"  # 請替換為安全的隨機密鑰
+app.secret_key = "your-secret-key"
 logging.basicConfig(level=logging.DEBUG)
 
 # 初始化 Firebase
-cred = credentials.Certificate("firebase_credentials/service_account.json")
 try:
+    cred = credentials.Certificate("firebase_credentials/service_account.json")
     firebase_admin.initialize_app(
         cred, {"storageBucket": "health-emo-cat-guide.firebasestorage.app"}
     )
     logging.debug("Firebase initialized successfully")
+except FileNotFoundError as e:
+    logging.error(f"Firebase credential file not found: {e}")
+    raise
 except ValueError as e:
     logging.error(f"Firebase initialization failed: {e}")
+    raise
+
 db = firestore.client()
 try:
     bucket = storage.bucket()
@@ -38,7 +45,6 @@ def home():
 # 註冊
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    # 清除舊的 flash 訊息
     if request.method == "GET":
         session.pop("_flashes", None)
 
@@ -56,10 +62,8 @@ def register():
             return render_template("register.html", error="請輸入電子郵件和密碼")
 
         try:
-            # 使用 Firebase Authentication 創建用戶
             user = auth.create_user(email=email, password=password)
             logging.debug(f"User created: uid={user.uid}, email={email}")
-            # 儲存用戶資訊到 Firestore
             db.collection("users").document(user.uid).set(
                 {
                     "email": email,
@@ -67,16 +71,17 @@ def register():
                     "last_login": None,
                 }
             )
+            logging.debug(f"User document created in Firestore for uid: {user.uid}")
             session["user_id"] = user.uid
             flash("註冊成功！請上傳健康報告。", "success")
             return redirect(url_for("upload_health"))
         except FirebaseError as e:
             error_message = str(e)
-            logging.error(f"Firebase error: {error_message}")
+            logging.error(f"Firebase error during registration: {error_message}")
             flash(f"註冊失敗：{error_message}", "error")
             return render_template("register.html", error=f"註冊失敗：{error_message}")
         except Exception as e:
-            logging.error(f"Unexpected error: {str(e)}")
+            logging.error(f"Unexpected error during registration: {str(e)}")
             flash(f"註冊失敗：{str(e)}", "error")
             return render_template("register.html", error=f"註冊失敗：{str(e)}")
 
@@ -86,7 +91,6 @@ def register():
 # 登入
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    # 清除舊的 flash 訊息，避免顯示不相關的成功訊息
     if request.method == "GET":
         session.pop("_flashes", None)
 
@@ -104,12 +108,11 @@ def login():
             return render_template("login.html", error="請輸入電子郵件和密碼")
 
         try:
-            # 注意：Admin SDK 不直接驗證密碼，僅檢查 email 存在
             user = auth.get_user_by_email(email)
-            # 模擬登入成功，實際應使用 Firebase Client SDK 驗證密碼
             db.collection("users").document(user.uid).update(
                 {"last_login": firestore.SERVER_TIMESTAMP}
             )
+            logging.debug(f"User login updated in Firestore for uid: {user.uid}")
             session["user_id"] = user.uid
             flash("登入成功！", "success")
             return redirect(url_for("home"))
@@ -126,98 +129,124 @@ def login():
     return render_template("login.html")
 
 
-# 九宮格貓咪頁面 (已修改)
+# 九宮格貓咪頁面
 @app.route("/featured_cats")
 def featured_cats():
     is_logged_in = "user_id" in session
     return render_template("featured_cats.html", is_logged_in=is_logged_in)
 
 
-# 上傳健康報告
+# 上傳健康報告（修正版本）
+
+
 @app.route("/upload_health", methods=["GET", "POST"])
 def upload_health():
     if "user_id" not in session:
-        flash("請先登入！", "error")
+        flash("請先登錄！", "error")
         return redirect(url_for("login"))
 
-    # 清除舊的 flash 訊息，避免 GET 請求時顯示不必要的成功訊息
-    if request.method == "GET":
-        session.pop("_flashes", None)
+    user_id = session["user_id"]
+    logging.debug(f"Current user_id from session: {user_id}")
 
     if request.method == "POST":
+        if "health_report" not in request.files:
+            flash("未選擇檔案！", "error")
+            return redirect(request.url)
+
+        file = request.files["health_report"]
+        if file.filename == "":
+            flash("未選擇檔案！", "error")
+            return redirect(request.url)
+
         logging.debug(
             f"Received POST request with form data: {request.form}, files: {request.files}"
         )
 
-        # 檢查是否已經上傳過健康報告
-        user_id = session["user_id"]
-        existing_reports = list(
-            db.collection("users")
-            .document(user_id)
-            .collection("health_reports")
-            .stream()
-        )
+        # 檢查檔案類型
+        is_image = file.mimetype in ["image/jpeg", "image/png"]
+        is_pdf = file.mimetype == "application/pdf"
+        if not (is_image or is_pdf):
+            flash("僅支援 JPEG、PNG 或 PDF 檔案！", "error")
+            return redirect(request.url)
 
-        if existing_reports:
-            flash("您已經上傳過健康報告了！請繼續進行心理測驗。", "info")
-            return redirect(url_for("psychology_test"))
+        # 上傳檔案到 Firebase Storage
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{timestamp}_{file.filename}"
+        blob_path = f"health_reports/{user_id}/{filename}"
+        logging.debug(f"Uploading file: {file.filename}")
+        logging.debug(f"Uploading to Storage: {blob_path}")
 
-        if (
-            "health_report" not in request.files
-            or request.files["health_report"].filename == ""
-        ):
-            flash("請選擇一個檔案或拍照！", "error")
-            logging.warning("No file uploaded or empty filename")
-            return redirect(url_for("upload_health"))
+        blob = bucket.blob(blob_path)
+        blob.upload_from_file(file, content_type=file.mimetype)
+        blob.make_public()
+        file_url = blob.public_url
+        logging.debug(f"File uploaded successfully to Storage: {file_url}")
 
-        file = request.files["health_report"]
-        file_name = file.filename.lower()
-        logging.debug(f"Uploading file: {file_name}")
-        allowed_extensions = [".pdf", ".jpg", ".jpeg", ".png"]
-        if not any(file_name.endswith(ext) for ext in allowed_extensions):
-            flash("請上傳 PDF 或圖片（JPG、PNG）格式的檔案！", "error")
-            logging.warning(f"Invalid file extension: {file_name}")
-            return redirect(url_for("upload_health"))
-
-        file.seek(0, os.SEEK_END)
-        file_size = file.tell()
-        if file_size > 10 * 1024 * 1024:
-            flash("檔案大小超過 10MB 限制！", "error")
-            logging.warning(f"File size too large: {file_size} bytes")
-            return redirect(url_for("upload_health"))
-        file.seek(0)
-
+        # 分析健康報告
+        logging.debug("Starting health report analysis...")
         try:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            blob = bucket.blob(f"health_reports/{user_id}/{timestamp}_{file.filename}")
-            logging.debug(f"Uploading to Storage: {blob.name}")
-            blob.upload_from_file(file)
-            blob.make_public()
-            file_url = blob.public_url
-            logging.debug(f"File uploaded successfully: {file_url}")
+            file.seek(0)  # 重置檔案指針
+            file_data = file.read()
+            file_type = "image" if is_image else "pdf"
+            analysis_data, health_score, health_warnings = analyze_health_report(
+                file_data, user_id, file_type
+            )
+            logging.debug(
+                f"Analysis result - data: {analysis_data is not None}, score: {health_score}, warnings: {len(health_warnings)}"
+            )
+            if not analysis_data:
+                logging.warning("Health report analysis returned no data")
+                flash("健康報告分析失敗，請確保檔案包含清晰數據！", "warning")
+        except Exception as analysis_e:
+            logging.error(f"Health report analysis failed: {str(analysis_e)}")
+            flash(f"健康報告分析失敗：{str(analysis_e)}", "warning")
+            analysis_data, health_score, health_warnings = None, 0, []
 
-            db.collection("users").document(user_id).collection("health_reports").add(
+        # 準備 Firestore 文檔
+        health_report_doc = {
+            "user_uid": user_id,
+            "report_date": datetime.now().strftime("%Y/%m/%d"),
+            "filename": file.filename,
+            "url": file_url,
+            "file_type": file_type,
+            "created_at": SERVER_TIMESTAMP,
+        }
+        if analysis_data:
+            health_report_doc.update(
                 {
-                    "filename": file.filename,
-                    "url": file_url,
-                    "file_type": (
-                        "image"
-                        if file_name.endswith((".jpg", ".jpeg", ".png"))
-                        else "pdf"
-                    ),
-                    "upload_time": firestore.SERVER_TIMESTAMP,
+                    "vital_stats": analysis_data.get("vital_stats", {}),
+                    "health_score": health_score,
+                    "health_warnings": health_warnings,
                 }
             )
-            logging.debug(f"Health report saved to Firestore for user: {user_id}")
+            logging.debug(
+                f"Adding analysis data to doc: score={health_score}, warnings={health_warnings}"
+            )
 
-            flash("檔案上傳成功！請完成心理測驗。", "success")
-            return redirect(url_for("psychology_test"))
-        except Exception as e:
-            logging.error(f"Upload error: {str(e)}")
-            flash(f"上傳失敗：{str(e)}", "error")
-            return redirect(url_for("upload_health"))
+        # 儲存到 Firestore
+        doc_ref = db.collection("health_reports").add(health_report_doc)
+        report_id = doc_ref[1].id
+        logging.debug(
+            f"Health report SAVED to Firestore for user: {user_id}, report_id: {report_id}"
+        )
+        logging.debug(f"Saved document content: {health_report_doc}")
 
-    return render_template("upload_health.html", is_logged_in=True)
+        # 驗證寫入
+        saved_doc = db.collection("health_reports").document(report_id).get()
+        if saved_doc.exists:
+            logging.debug(
+                f"Firestore write verified - document exists: {saved_doc.to_dict()}"
+            )
+        else:
+            logging.error("Firestore write failed - document does not exist")
+
+        flash(
+            f"上傳成功！健康分數：{health_score}，警告：{'; '.join(health_warnings) if health_warnings else '無'}",
+            "success",
+        )
+        return redirect(url_for("psychology_test"))
+
+    return render_template("upload_health.html")
 
 
 # 心理測驗
@@ -227,7 +256,25 @@ def psychology_test():
         flash("請先登入！", "error")
         return redirect(url_for("login"))
 
-    # 清除舊的 flash 訊息
+    user_id = session["user_id"]
+    try:
+        health_reports = list(
+            db.collection("users")
+            .document(user_id)
+            .collection("health_reports")
+            .stream()
+        )
+        logging.debug(
+            f"Psychology test check - existing reports: {len(health_reports)}"
+        )
+        if not health_reports:
+            flash("請先上傳健康報告！", "error")
+            return redirect(url_for("upload_health"))
+    except Exception as e:
+        logging.error(f"Error checking health reports: {str(e)}")
+        flash(f"檢查健康報告失敗：{str(e)}", "error")
+        return redirect(url_for("upload_health"))
+
     if request.method == "GET":
         session.pop("_flashes", None)
 
@@ -241,7 +288,6 @@ def psychology_test():
             )
 
         try:
-            user_id = session["user_id"]
             db.collection("users").document(user_id).collection("psychology_tests").add(
                 {
                     "question1": question1,
@@ -249,6 +295,7 @@ def psychology_test():
                     "submit_time": firestore.SERVER_TIMESTAMP,
                 }
             )
+            logging.debug("Psychology test saved to Firestore")
             flash("測驗提交成功！請生成貓咪圖卡。", "success")
             return redirect(url_for("generate_card"))
         except Exception as e:
@@ -268,7 +315,6 @@ def generate_card():
         flash("請先登入！", "error")
         return redirect(url_for("login"))
 
-    # 清除舊的 flash 訊息
     session.pop("_flashes", None)
 
     try:
@@ -280,6 +326,7 @@ def generate_card():
             .stream()
         )
         reports = [report.to_dict() for report in health_reports]
+        logging.debug(f"Generate card - reports found: {len(reports)}")
         if not reports:
             flash("請先上傳健康報告！", "error")
             return redirect(url_for("upload_health"))
@@ -312,7 +359,6 @@ def generate_card():
 @app.route("/logout")
 def logout():
     session.pop("user_id", None)
-    # 清除所有 flash 訊息，然後只顯示登出訊息
     session.pop("_flashes", None)
     flash("已成功登出！", "success")
     return redirect(url_for("home"))
