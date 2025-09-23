@@ -152,6 +152,7 @@
             #webcrumbs .text-white { color: rgb(255 255 255); }
             #webcrumbs .text-red-600 { color: rgb(220 38 38); }
             #webcrumbs .text-green-600 { color: rgb(22 163 74); }
+            #webcrumbs .text-yellow-600 { color: rgb(202 138 4); }
             #webcrumbs .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
             #webcrumbs .transition-all { transition-duration: 0.15s; transition-property: all; }
             #webcrumbs .transition-colors { transition-duration: 0.15s; transition-property: color, background-color, border-color; }
@@ -316,7 +317,7 @@
                             <p class="text-sm text-red-600 mb-4 text-center">{{ error }}</p>
                             {% endif %}
                             {% for category, message in get_flashed_messages(with_categories=true) %}
-                            <p class="text-sm {% if category == 'error' %}text-red-600{% else %}text-green-600{% endif %} mb-4 text-center">{{ message }}</p>
+                            <p class="text-sm {% if category == 'error' %}text-red-600{% elif category == 'warning' %}text-yellow-600{% else %}text-green-600{% endif %} mb-4 text-center">{{ message }}</p>
                             {% endfor %}
                             <form method="POST" action="{{ url_for('upload_health') }}" enctype="multipart/form-data" class="space-y-6">
                                 <div>
@@ -365,6 +366,16 @@
                                     上傳健康報告
                                 </button>
                             </form>
+                            
+                            <!-- 顯示健康分析結果 -->
+                            {% if get_flashed_messages(with_categories=true) %}
+                            <div class="mt-6 bg-white rounded-lg shadow-sm p-6 max-w-md w-full sm:max-w-full">
+                                <h2 class="text-xl font-bold mb-4">健康報告分析結果</h2>
+                                {% for category, message in get_flashed_messages(with_categories=true) %}
+                                <p class="text-sm {% if category == 'error' %}text-red-600{% elif category == 'warning' %}text-yellow-600{% else %}text-green-600{% endif %} mb-2">{{ message }}</p>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </main>

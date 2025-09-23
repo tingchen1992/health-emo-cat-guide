@@ -1,0 +1,130 @@
+{
+  "health_standards": {
+    "glucose": {
+      "name": "血糖",
+      "reference_value": "70-100",
+      "unit": "mg/dL",
+      "aliases": ["Glu-AC", "Glucose (A.C.)"]
+    },
+    "hemoglobin_a1c": {
+      "name": "糖化血紅蛋白",
+      "reference_value": "4.0-6.0",
+      "unit": "%",
+      "aliases": ["HbA1c"]
+    },
+    "cholesterol": {
+      "name": "總膽固醇",
+      "reference_value": "<200",
+      "unit": "mg/dL",
+      "aliases": ["T-CHO", "Total Cholesterol"]
+    },
+    "t_cho": {
+      "name": "總膽固醇(T-CHO)",
+      "reference_value": "<200",
+      "unit": "mg/dL",
+      "aliases": ["T-CHO", "Total Cholesterol"]
+    },
+    "triglycerides": {
+      "name": "三酸甘油酯",
+      "reference_value": "<150",
+      "unit": "mg/dL",
+      "aliases": ["TG", "Triglyceride"]
+    },
+    "ldl_cholesterol": {
+      "name": "低密度脂蛋白膽固醇",
+      "reference_value": "<130",
+      "unit": "mg/dL",
+      "aliases": ["LDL-C", "LDL-Cholesterol"]
+    },
+    "hdl_cholesterol": {
+      "name": "高密度脂蛋白膽固醇",
+      "reference_value": ">40",
+      "unit": "mg/dL",
+      "aliases": ["HDL-C", "HDL-Cholesterol"]
+    },
+    "bmi": {
+      "name": "身體質量指數",
+      "reference_value": "18.5-24.9",
+      "unit": "",
+      "aliases": []
+    },
+    "alt_or_sgpt": {
+      "name": "丙氨酸氨基轉移酶",
+      "reference_value": "0-41",
+      "unit": "U/L",
+      "aliases": ["ALT(GPT)", "ALT（GPT）"]
+    },
+    "ast_or_sgot": {
+      "name": "天門冬氨酸氨基轉移酶",
+      "reference_value": "8-31",
+      "unit": "U/L",
+      "aliases": ["AST(GOT)", "AST（GOT）"]
+    },
+    "creatinine": {
+      "name": "肌酐",
+      "reference_value": "0.6-1.3",
+      "unit": "mg/dL",
+      "aliases": ["CRE"]
+    },
+    "egfr": {
+      "name": "腎小球過濾率",
+      "reference_value": ">90",
+      "unit": "mL/min/1.73m²",
+      "aliases": []
+    },
+    "uric_acid": {
+      "name": "尿酸",
+      "reference_value": "2.3-7.6",
+      "unit": "mg/dL",
+      "aliases": ["U.A"]
+    },
+    "wbc": {
+      "name": "白血球計數",
+      "reference_value": "3.25-9.16",
+      "unit": "10^9/L",
+      "aliases": ["WBC", "WBC_2"]
+    },
+    "rbc": {
+      "name": "紅血球計數",
+      "reference_value": "3.78-5.9",
+      "unit": "10^12/L",
+      "aliases": ["RBC", "RBC_2"]
+    },
+    "hemoglobin": {
+      "name": "血紅蛋白",
+      "reference_value": "11.0-17.2",
+      "unit": "g/dL",
+      "aliases": ["Hb", "Hb_2"]
+    },
+    "platelet": {
+      "name": "血小板計數",
+      "reference_value": "150-378",
+      "unit": "10^9/L",
+      "aliases": ["PLT", "Platelet"]
+    },
+    "urine_glucose": {
+      "name": "尿糖",
+      "reference_value": "(-)",
+      "unit": "",
+      "aliases": ["Glucose (Dipstick)"]
+    },
+    "urine_protein": {
+      "name": "尿蛋白",
+      "reference_value": "(-) ~ (+/-)",
+      "unit": "",
+      "aliases": ["Protein (Dipstick)"]
+    },
+    "blood_pressure_systolic": {
+      "name": "收縮壓",
+      "reference_value": "90-120",
+      "unit": "mmHg",
+      "aliases": []
+    },
+    "blood_pressure_diastolic": {
+      "name": "舒張壓",
+      "reference_value": "60-80",
+      "unit": "mmHg",
+      "aliases": []
+    }
+  }
+}

@@ -1,0 +1,629 @@
+{
+  "health_standards": {
+    "Glu-AC": {
+      "name": "空腹血糖",
+      "reference_value": "70-100",
+      "unit": "mg/dL"
+    },
+    "HbA1c": {
+      "name": "糖化血色素",
+      "reference_value": "4.0-6.0",
+      "unit": "%"
+    },
+    "Glu-PC": {
+      "name": "飯後血糖",
+      "reference_value": "<140",
+      "unit": "mg/dL"
+    },
+    "Alb": {
+      "name": "白蛋白",
+      "reference_value": "3.5~5.7",
+      "unit": "g/dL"
+    },
+    "TP": {
+      "name": "血清蛋白總量",
+      "reference_value": "6.4~8.9",
+      "unit": "g/dL"
+    },
+    "AST（GOT）": {
+      "name": "天門冬胺酸轉胺酶(肝功能指數)",
+      "reference_value": "8 ~ 31",
+      "unit": "U/L"
+    },
+    "ALT（GPT）": {
+      "name": "丙胺酸轉胺酶(肝功能指數)",
+      "reference_value": "0 ~ 41",
+      "unit": "U/L"
+    },
+    "D-Bil": {
+      "name": "直接膽紅素",
+      "reference_value": "0.03~0.18",
+      "unit": "mg/dL"
+    },
+    "ALP": {
+      "name": "鹼性磷酸酯酶(肝膽骨骼)",
+      "reference_value": "34~104",
+      "unit": "U/L"
+    },
+    "T-Bil": {
+      "name": "總膽紅素",
+      "reference_value": "0.3~1.0",
+      "unit": "mg/dL"
+    },
+    "UN": {
+      "name": "尿素氮（腎功能）",
+      "reference_value": "7~25",
+      "unit": "mg/dL"
+    },
+    "CRE": {
+      "name": "肌酸酐（腎功能）",
+      "reference_value": "0.6-1.3",
+      "unit": "mg/dL"
+    },
+    "U.A": {
+      "name": "尿酸",
+      "reference_value": "男：4.4~7.6;女：2.3~6.6",
+      "unit": "mg/dL"
+    },
+    "T-CHO": {
+      "name": "總膽固醇",
+      "reference_value": "< 200",
+      "unit": "mg/dL"
+    },
+    "LDL-C": {
+      "name": "低密度脂蛋白（壞膽固醇）",
+      "reference_value": "< 130",
+      "unit": "mg/dL"
+    },
+    "HDL-C": {
+      "name": "高密度脂蛋白（好膽固醇）",
+      "reference_value": "> 40",
+      "unit": "mg/dL"
+    },
+    "TG": {
+      "name": "三酸甘油酯",
+      "reference_value": "< 150",
+      "unit": "mg/dL"
+    },
+    "Hb": {
+      "name": "血色素",
+      "reference_value": "男：13.1~17.2;女：11.0~15.2",
+      "unit": "g/dL"
+    },
+    "Hct": {
+      "name": "血比容",
+      "reference_value": "男：39.6~51.5;女：34.8~46.3",
+      "unit": "%"
+    },
+    "PLT": {
+      "name": "血小板",
+      "reference_value": "150~378",
+      "unit": "103/uL"
+    },
+    "WBC": {
+      "name": "白血球",
+      "reference_value": "3.25~9.16",
+      "unit": "103/uL"
+    },
+    "RBC": {
+      "name": "紅血球",
+      "reference_value": "男：4.21~5.9;女：3.78~5.25",
+      "unit": "106/uL"
+    },
+    "hsCRP": {
+      "name": "高敏感度C-反應性蛋白",
+      "reference_value": "< 1 (評估感染或發炎性疾病)；Recommended Cardiac risk assessment categories： Low < 0.1 , Average 0.1~0.3 , High > 0.3",
+      "unit": "mg/dL"
+    },
+    "Alpha-FetoProtein(AFP)": {
+      "name": "甲型胎兒蛋白/ 肝硬化或肝癌",
+      "reference_value": "< 20",
+      "unit": "ng/mL"
+    },
+    "CEA": {
+      "name": "癌胚胎抗原/ 大腸直腸胃等",
+      "reference_value": "<5.0",
+      "unit": "ng/mL"
+    },
+    "CA-125": {
+      "name": "癌症抗原125/卵巢腸胃癌",
+      "reference_value": "< 35",
+      "unit": "U/mL"
+    },
+    "CA19-9": {
+      "name": "癌症抗原19-9/胰臟膽囊癌",
+      "reference_value": "< 37",
+      "unit": "U/mL"
+    },
+    "Hb_2": {
+      "name": "血紅素",
+      "reference_value": "男：13.1~17.2；女：11.0~15.2",
+      "unit": "g/dL"
+    },
+    "RBC_2": {
+      "name": "紅血球",
+      "reference_value": "男：4.21~5.9；女：3.78~5.25",
+      "unit": "106/uL"
+    },
+    "WBC_2": {
+      "name": "白血球",
+      "reference_value": "3.25~9.16",
+      "unit": "103/uL"
+    },
+    "Hct_2": {
+      "name": "血比容",
+      "reference_value": "男：39.6~51.5；女：34.8~46.3",
+      "unit": "%"
+    },
+    "Platelet": {
+      "name": "血小板",
+      "reference_value": "150~378",
+      "unit": "103/uL"
+    },
+    "MCV": {
+      "name": "平均血球容積",
+      "reference_value": "80.9~99.3",
+      "unit": "fL"
+    },
+    "MCH": {
+      "name": "平均血色素蛋白(平均血球血紅素)",
+      "reference_value": "25.5~33.2",
+      "unit": "pg"
+    },
+    "MCHC": {
+      "name": "平均血球血紅素濃度",
+      "reference_value": "31.0~34.9",
+      "unit": "g/dL"
+    },
+    "Reticulocyte": {
+      "name": "網狀紅血球",
+      "reference_value": "男：1.05~2.50 女：0.87~2.48",
+      "unit": "%"
+    },
+    "Neutrophils (seg)": {
+      "name": "嗜中性球(嗜中性白血球)",
+      "reference_value": "41.6-74.4",
+      "unit": "%"
+    },
+    "Lymphocytes (Lym)": {
+      "name": "淋巴球",
+      "reference_value": "18.0-48.8",
+      "unit": "%"
+    },
+    "Monocytes (Mono)": {
+      "name": "單核球",
+      "reference_value": "3.3-8.9",
+      "unit": "%"
+    },
+    "Eosinophils (Eso)": {
+      "name": "嗜酸性球(嗜酸性白血球)",
+      "reference_value": "0.3-7.9",
+      "unit": "%"
+    },
+    "Basophils (Baso)": {
+      "name": "嗜鹼性球(嗜鹼性白血球)",
+      "reference_value": "0.2-1.6",
+      "unit": "%"
+    },
+    "PT": {
+      "name": "凝血酵素原時間",
+      "reference_value": "9.7 ~ 11.8 ( INR 0.91 ~ 1.10)",
+      "unit": "sec"
+    },
+    "aPTT": {
+      "name": "活化部分凝血激素時間",
+      "reference_value": "25.6-32.6",
+      "unit": "sec"
+    },
+    "E.S.R.": {
+      "name": "紅血球沉澱速率",
+      "reference_value": "男：2~10；女：2~15",
+      "unit": "mm/hr"
+    },
+    "RDW-CV": {
+      "name": "紅血球分佈寬度",
+      "reference_value": "11.6~15.0",
+      "unit": "%"
+    },
+    "Specific Gravity (Dipstick)": {
+      "name": "比重(尿液試紙)",
+      "reference_value": "1.003-1.035",
+      "unit": ""
+    },
+    "Color-Appearance": {
+      "name": "外觀",
+      "reference_value": "Clear, yellow",
+      "unit": ""
+    },
+    "PH (Dipstick)": {
+      "name": "酸鹼度(尿液試紙)",
+      "reference_value": "5.0-8.0",
+      "unit": ""
+    },
+    "Protein (Dipstick)": {
+      "name": "尿蛋白(尿液試紙)",
+      "reference_value": "(-) ~ (+/-)",
+      "unit": ""
+    },
+    "Glucose (Dipstick)": {
+      "name": "尿糖(尿液試紙)",
+      "reference_value": "(-)",
+      "unit": ""
+    },
+    "Bilirubin (Dipstick)": {
+      "name": "膽紅素(尿液試紙)",
+      "reference_value": "(-)",
+      "unit": ""
+    },
+    "Urobilinogen (Dipstick)": {
+      "name": "尿膽素原(尿液試紙)",
+      "reference_value": "<= 1.5",
+      "unit": "mg/dL"
+    },
+    "RBC (Sediment)": {
+      "name": "尿沉渣顯微鏡檢查－紅血球",
+      "reference_value": "0-2",
+      "unit": "/HPF"
+    },
+    "WBC (Sediment)": {
+      "name": "尿沉渣顯微鏡檢查－白血球",
+      "reference_value": "0-5",
+      "unit": "/HPF"
+    },
+    "Epith Cell (Sediment)": {
+      "name": "尿沉渣顯微鏡檢查－上皮細胞",
+      "reference_value": "Squamous epithelial cells 0-5",
+      "unit": "/HPF"
+    },
+    "Casts (Sediment)": {
+      "name": "尿沉渣顯微鏡檢查－圓柱體",
+      "reference_value": "Hyaline cast 0-2",
+      "unit": "/LPF"
+    },
+    "Ketone(Dipstick)": {
+      "name": "酮體(尿液試紙)",
+      "reference_value": "(-)",
+      "unit": ""
+    },
+    "Crystal (Sediment)": {
+      "name": "尿沉渣顯微鏡檢查－結晶體",
+      "reference_value": "None of Abnormal crystal",
+      "unit": "/HPF"
+    },
+    "Bacteria (Sediment)": {
+      "name": "尿沉渣顯微鏡檢查－細菌",
+      "reference_value": "(-)(Fresh)",
+      "unit": "/HPF"
+    },
+    "Albumin (Dipstick)": {
+      "name": "白蛋白(尿液試紙)",
+      "reference_value": "10",
+      "unit": "mg/L"
+    },
+    "Creatinine (Dipstick)": {
+      "name": "肌酸酐(尿液試紙)",
+      "reference_value": "N/A",
+      "unit": ""
+    },
+    "Albumin / Creatinine Ratio (Dipstick)": {
+      "name": "白蛋白對肌酸酐比值(尿液試紙)",
+      "reference_value": "Normal(<30)",
+      "unit": ""
+    },
+    "Nitrite(Dipstick)": {
+      "name": "亞硝酸(尿液試紙)",
+      "reference_value": "(-)",
+      "unit": ""
+    },
+    "O.B.(Dipstick)": {
+      "name": "潛血(尿液試紙)",
+      "reference_value": "(-)",
+      "unit": ""
+    },
+    "WBC esterase(Dipstick)": {
+      "name": "白血球酯酶(尿液試紙)",
+      "reference_value": "(-)",
+      "unit": ""
+    },
+    "Occult Blood(Dipstick)": {
+      "name": "潛血(尿液試紙)",
+      "reference_value": "(-)",
+      "unit": ""
+    },
+    "Micro-albumin": {
+      "name": "微蛋白尿",
+      "reference_value": "<30",
+      "unit": "mg/L"
+    },
+    "VMA": {
+      "name": "香草扁桃酸",
+      "reference_value": "1.6~7.3 (該數值只適用 ≥ 18歲之受檢者)",
+      "unit": "mg/24hrs"
+    },
+    "Dopamine": {
+      "name": "多巴胺",
+      "reference_value": "62~444 (該數值只適用 ≥ 18歲之受檢者)",
+      "unit": "μg/24hrs"
+    },
+    "Epinephrine": {
+      "name": "腎上腺素",
+      "reference_value": "4~20 (該數值只適用 ≥ 18歲之受檢者)",
+      "unit": "μg/24hrs"
+    },
+    "Nor-epinephrine": {
+      "name": "正腎上腺素",
+      "reference_value": "23~105 (該數值只適用 ≥ 18歲之受檢者)",
+      "unit": "μg/24hrs"
+    },
+    "Glucose (A.C.)": {
+      "name": "空腹血糖",
+      "reference_value": "70-100",
+      "unit": "mg/dL"
+    },
+    "Glucose (2hrs P.C.)": {
+      "name": "飯後兩小時血糖",
+      "reference_value": "< 140",
+      "unit": "mg/dL"
+    },
+    "HbA1c_2": {
+      "name": "糖化血色素",
+      "reference_value": "4.0-6.0",
+      "unit": "%"
+    },
+    "insulin": {
+      "name": "胰島素",
+      "reference_value": "< 28.8",
+      "unit": "μU/mL"
+    },
+    "C-peptide ( 0 min)": {
+      "name": "胰島素連結胜肽( 0 分鐘)",
+      "reference_value": "0.78-5.19",
+      "unit": "ng/mL"
+    },
+    "Direct bilirubin": {
+      "name": "直接膽紅素",
+      "reference_value": "0.03-0.18",
+      "unit": "mg/dL"
+    },
+    "Total bilirubin": {
+      "name": "總膽紅素",
+      "reference_value": "0.3-1.0",
+      "unit": "mg/dL"
+    },
+    "AST(GOT)": {
+      "name": "天門冬胺酸轉胺酶(肝功能指數)",
+      "reference_value": "8 ~ 31",
+      "unit": "U/L"
+    },
+    "ALT(GPT)": {
+      "name": "丙胺酸轉胺酶(肝功能指數)",
+      "reference_value": "0 ~ 41",
+      "unit": "U/L"
+    },
+    "Total protein": {
+      "name": "總蛋白量",
+      "reference_value": "6.4-8.9",
+      "unit": "g/dL"
+    },
+    "Albumin": {
+      "name": "白蛋白",
+      "reference_value": "3.5-5.7",
+      "unit": "g/dL"
+    },
+    "Alkaline phosphatase (ALP)": {
+      "name": "鹼性磷酸酶",
+      "reference_value": "34-104",
+      "unit": "U/L"
+    },
+    "α-Fetoprotein": {
+      "name": "甲型胎兒蛋白",
+      "reference_value": "< 20",
+      "unit": "ng/mL"
+    },
+    "γ-GT": {
+      "name": "麩胺酸轉胺酵素",
+      "reference_value": "9 ~ 64",
+      "unit": "U/L"
+    },
+    "HBeAg": {
+      "name": "B型肝炎e抗原",
+      "reference_value": "判讀標準(Sample RLU-to-Cutoff RLU Ratio, S/CO)：Negative：＜1.0；Positive：≧1.0",
+      "unit": ""
+    },
+    "Anti-HBe": {
+      "name": "抗B型肝炎e抗原抗體 恢復期",
+      "reference_value": "判讀標準(Sample RLU-to-Cutoff RLU Ratio, S/CO)：Negative：＞1.0；Positive：≦1.0。",
+      "unit": ""
+    },
+    "Anti-HBc": {
+      "name": "抗B型肝炎核心抗原抗體",
+      "reference_value": "判讀標準(Sample RLU-to-Cutoff RLU Ratio, S/CO)：Negative：＜1.0；Positive：≧1.0",
+      "unit": ""
+    },
+    "Anti-HBs": {
+      "name": "抗B型肝炎表面抗原抗體 免疫力",
+      "reference_value": "判讀標準：Negative：<10.00 mIU/mL； Positive：≧10.00 mIU/mL",
+      "unit": ""
+    },
+    "Anti-HBc-IgM": {
+      "name": "抗B型肝炎核心抗原IgM抗體 急性期",
+      "reference_value": "判讀標準(Sample RLU-to-Cutoff RLU Ratio, S/CO)：Negative：＜1.0；Positive：≧1.0",
+      "unit": ""
+    },
+    "Anti-HAV-IgG": {
+      "name": "抗A型肝炎IgG抗體",
+      "reference_value": "判讀標準(Sample RLU-to-Cutoff RLU Ratio, S/CO)：Negative：＜1.0；Positive：≧1.0",
+      "unit": ""
+    },
+    "Anti-HAV-IgM": {
+      "name": "抗A型肝炎IgM抗體",
+      "reference_value": "判讀標準(Sample RLU-to-Cutoff RLU Ratio, S/CO)：Negative：＜0.80；Grayzone Positive：0.80~1.20；Positive：>1.20",
+      "unit": ""
+    },
+    "Anti-HCV": {
+      "name": "抗C型肝炎抗體",
+      "reference_value": "判讀標準(Sample RLU-to-Cutoff RLU Ratio, S/CO)：Negative：＜1.0；Positive：≧1.0",
+      "unit": ""
+    },
+    "HBsAg (Quantitative)": {
+      "name": "B型肝炎表面抗原定量分析",
+      "reference_value": "判讀標準：Negative：＜ 0.05 IU/mL； Positve：≧ 0.05 IU/mL",
+      "unit": ""
+    },
+    "HBsAg (Qualitative)": {
+      "name": "B型肝炎表面抗原定性分析",
+      "reference_value": "判讀標準(Sample RLU-to-Cutoff RLU Ratio, S/CO)： Negative：＜1.0； Positive：≧1.0",
+      "unit": ""
+    },
+    "Ammonia": {
+      "name": "阿摩尼亞(氨氣)",
+      "reference_value": "16-53",
+      "unit": "μmol/L"
+    },
+    "Lactate dehydrogenase (LDH)": {
+      "name": "乳酸脫氫酶",
+      "reference_value": "140-271",
+      "unit": "U/L"
+    },
+    "Lactic acid (Lactate)": {
+      "name": "乳酸",
+      "reference_value": "0.5-2.2",
+      "unit": "mmol/L"
+    },
+    "Triglyceride": {
+      "name": "三酸甘油酯",
+      "reference_value": "< 150",
+      "unit": "mg/dL"
+    },
+    "Total Cholesterol": {
+      "name": "總膽固醇",
+      "reference_value": "< 200",
+      "unit": "mg/dL"
+    },
+    "HDL-Cholesterol": {
+      "name": "高密度脂蛋白膽固醇（好的）",
+      "reference_value": "> 40",
+      "unit": "mg/dL"
+    },
+    "LDL-Cholesterol": {
+      "name": "低密度脂蛋白膽固醇（壞的）",
+      "reference_value": "< 130",
+      "unit": "mg/dL"
+    },
+    "CK(Creatine Kinase)": {
+      "name": "肌酸磷酸酶",
+      "reference_value": "30-223",
+      "unit": "U/L"
+    },
+    "α-Fetoprotein (AFP)": {
+      "name": "Alpha胎兒蛋白/ 臨床意義 :肝硬化或肝癌",
+      "reference_value": "< 20.0",
+      "unit": "ng/mL"
+    },
+    "CEA(RIA)(CIA)": {
+      "name": "癌胚胎抗原/ 臨床意義:大腸直腸胃等",
+      "reference_value": "< 5.0",
+      "unit": "ng/mL"
+    },
+    "CA 125": {
+      "name": "癌症抗原125/ 臨床意義 :卵巢腸胃癌",
+      "reference_value": "< 35.0",
+      "unit": "U/mL"
+    },
+    "CA 199(RIA)(CIA)": {
+      "name": "CA19-9腫瘤標記 / 癌症抗原CA19-9 臨床意義:胰臟膽囊癌",
+      "reference_value": "< 37.0",
+      "unit": "U/mL"
+    },
+    "PSA": {
+      "name": "前列腺特異抗原 臨床意義:攝護腺特異抗原(癌)",
+      "reference_value": "40-49歲 : < 2.5 50-59歲 : < 3.5 60-69歲 ; < 4.5 70-79歲 : < 6.5",
+      "unit": "ng/mL"
+    },
+    "T3(RIA)": {
+      "name": "三碘甲狀腺素",
+      "reference_value": "78.0–182.0",
+      "unit": "ng/dL"
+    },
+    "T4(RIA)": {
+      "name": "四碘甲狀腺素",
+      "reference_value": "4.6-12.4",
+      "unit": "μg/dL"
+    },
+    "TSH(RIA)": {
+      "name": "甲狀腺刺激素",
+      "reference_value": "0.17-4.05",
+      "unit": "mIU/L"
+    },
+    "Free T4(RIA)": {
+      "name": "游離甲狀腺素",
+      "reference_value": "0.89-1.79",
+      "unit": "ng/dL"
+    },
+    "Free T4(CIA)": {
+      "name": "游離型甲狀腺素",
+      "reference_value": "0.7-1.48",
+      "unit": "ng/dL"
+    },
+    "Anti-Thyroglobulin antibody (Anti-Tg)": {
+      "name": "抗甲狀腺球蛋白抗體",
+      "reference_value": "血清(Serum): <14.4",
+      "unit": "IU/mL"
+    },
+    "Anti-TPO": {
+      "name": "甲狀腺過氧化酶抗體",
+      "reference_value": "血清(Serum): <5.61",
+      "unit": "IU/mL"
+    },
+    "(Iron & TIBC)_Iron": {
+      "name": "血清鐵",
+      "reference_value": "51~209",
+      "unit": "μg/dL"
+    },
+    "(Iron & TIBC)_TIBC": {
+      "name": "總鐵結合能力",
+      "reference_value": "268~593",
+      "unit": "μg/dL"
+    },
+    "Calcium, Ca": {
+      "name": "鈣",
+      "reference_value": "2.15~2.58",
+      "unit": "mmol/L"
+    },
+    "Chloride, Cl": {
+      "name": "氯",
+      "reference_value": "98~107",
+      "unit": "mmol/L"
+    },
+    "25-OH Vitamin D": {
+      "name": "維生素D",
+      "reference_value": "Severe deficiency：<10 Mild-moderate deficiency：10-24 Optimal level：25-80 Toxic possible：> 80",
+      "unit": "ng/mL"
+    },
+    "Ferritin": {
+      "name": "鐵蛋白",
+      "reference_value": "男：21.81~274.66 女：4.63~204.0",
+      "unit": "ng/mL"
+    },
+    "Magnesium, Mg": {
+      "name": "鎂",
+      "reference_value": "0.78~1.11",
+      "unit": "mmol/L"
+    },
+    "Phosphate, P": {
+      "name": "磷",
+      "reference_value": "2.5~5",
+      "unit": "mg/dL"
+    },
+    "Potassium, K": {
+      "name": "鉀",
+      "reference_value": "3.5~5.1",
+      "unit": "mmol/L"
+    },
+    "Sodium, Na": {
+      "name": "鈉",
+      "reference_value": "136~145",
+      "unit": "mmol/L"
+    }
+  }
+}
