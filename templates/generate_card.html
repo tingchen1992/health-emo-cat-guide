@@ -470,7 +470,8 @@
                 <span style="font-weight: 600; font-size: 20px;">Meow Yourself</span>
             </div>
             <nav class="nav">
-                <a href="#" class="nav-item">
+                <!-- 🟢 修改：首頁按鈕導向首頁路由 -->
+                <a href="{{ url_for('home') }}" class="nav-item">
                     <span class="material-symbols-outlined">home</span> 首頁
                 </a>
                 <a href="#" class="nav-item">
@@ -519,6 +520,14 @@
                 
                 <div class="ai-signature">🤖 AI 生成專屬健康伙伴</div>
             </div>
+            
+            <!-- 🟢 修改開始：生成頁免責聲明 -->
+            <div class="disclaimer-block" style="margin: 24px 0;">
+                <div style="background: #fde68a; border: 1px solid #fcd34d; color: #92400e; border-radius: 20px; padding: 16px 24px; text-align: center; font-size: 14px; line-height: 1.6;">
+                    <strong>【特別提醒】</strong> 本測驗僅為娛樂與參考，並非醫療建議。若有任何身心困擾，請尋求專業協助。
+                </div>
+            </div>
+            <!-- 🟢 修改結束 -->
             
             <!-- 分享區域 -->
             <div class="share-section">

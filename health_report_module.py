@@ -3,8 +3,10 @@ import logging
 import os
 from io import BytesIO
 from PIL import Image
-import google.generativeai as genai
-from google.generativeai.types import HarmBlockThreshold, HarmCategory
+# 🟢 修改（google-genai）：切換到新的 google-genai 套件
+from google import genai
+from google.genai import types as genai_types
+from google.genai.types import HarmBlockThreshold, HarmCategory, SafetySetting, GenerationConfig
 from dotenv import load_dotenv
 import datetime
 import pdfplumber
@@ -23,12 +25,28 @@ try:
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     if not GEMINI_API_KEY:
         raise ValueError("GEMINI_API_KEY environment variable not set")
-    genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = genai.GenerativeModel("gemini-2.5-flash")
+    genai_client = genai.Client(api_key=GEMINI_API_KEY)
+    _MODEL_NAME = "gemini-2.5-flash"
+    _SAFETY_SETTINGS = [
+        SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_NONE),
+        SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_NONE),
+        SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=HarmBlockThreshold.BLOCK_NONE),
+        SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_NONE),
+    ]
     logging.debug("Gemini API initialized successfully.")
 except Exception as e:
     logging.error(f"Gemini API initialization failed: {e}")
     raise Exception("Gemini API initialization failed.")
+
+
+def _generate_gemini_content(contents, generation_config):
+    """🟢 修改（google-genai）：透過新版 client 呼叫 Gemini。"""
+    return genai_client.models.generate_content(
+        model=_MODEL_NAME,
+        contents=contents,
+        generation_config=generation_config,
+        safety_settings=_SAFETY_SETTINGS,
+    )
 
 # Global variables to store health standards and alias mappings
 HEALTH_STANDARDS = {}
@@ -135,17 +153,17 @@ def analyze_image_with_gemini(image_data, user_uid, gender):
             logging.error(f"Image resolution too low: {img.size}")
             return None
 
-        response = gemini_model.generate_content(
-            [prompt, img],
-            generation_config=genai.types.GenerationConfig(
+        image_buffer = BytesIO()
+        img.save(image_buffer, format=img.format)
+        image_part = genai_types.Part.from_bytes(
+            data=image_buffer.getvalue(), mime_type=f"image/{img.format.lower()}"
+        )
+
+        response = _generate_gemini_content(
+            [prompt, image_part],
+            generation_config=GenerationConfig(
                 response_mime_type="application/json", temperature=0.0
             ),
-            safety_settings={
-                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            },
         )
 
         logging.info("Gemini image analysis complete, processing returned data...")
@@ -182,17 +200,11 @@ def analyze_pdf_with_gemini(pdf_data, user_uid, gender):
     prompt = get_gemini_prompt(user_uid, "pdf", gender)
     
     try:
-        response = gemini_model.generate_content(
+        response = _generate_gemini_content(
             [prompt, text],
-            generation_config=genai.types.GenerationConfig(
+            generation_config=GenerationConfig(
                 response_mime_type="application/json", temperature=0.0
             ),
-            safety_settings={
-                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            },
         )
 
         logging.info("Gemini PDF analysis complete, processing returned data...")

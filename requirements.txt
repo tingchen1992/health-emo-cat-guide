@@ -1,7 +1,6 @@
 flask==3.0.3
 firebase-admin==6.5.0
 Pillow
-google-generativeai
+google-genai
 python-dotenv
 pdfplumber
-

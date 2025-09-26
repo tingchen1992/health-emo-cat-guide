@@ -312,6 +312,41 @@
                         <p class="text-xl sm:text-lg text-gray-600 mb-8 text-center max-w-2xl sm:max-w-full">
                             請上傳您的健康報告（PDF 或 JPG/PNG 格式，最大 10MB）
                         </p>
+                        {% if auto_redirect %}
+                        <!-- 🟢 修改開始：已有報告時顯示重新上傳選項並自動導向心理測驗 -->
+                        <div class="w-full max-w-3xl sm:max-w-full mb-8 text-center">
+                            <div class="inline-block bg-white/70 border border-gray-200 text-gray-700 rounded-2xl px-6 py-4 text-base leading-relaxed shadow-sm">
+                                <p class="mb-3" style="font-size: 200%;">已找到您最近一次的健檢報告，系統將為您跳轉至心理測驗。</p>
+                                <a href="{{ url_for('upload_health', reupload=1) }}" class="inline-flex items-center gap-3 px-6 py-2.5 border border-transparent text-gray-700 rounded-full bg-white shadow hover:shadow-lg transition-all text-sm font-semibold">
+                                    <span class="material-symbols-outlined text-lg">file_upload</span>
+                                    <span class="flex items-center gap-2">🐾 我要重新上傳報告</span>
+                                </a>
+                            </div>
+                        </div>
+                        <script>
+                            setTimeout(function () {
+                                window.location.href = {{ psychology_url|tojson }};
+                            }, 3000);
+                        </script>
+                        <!-- 🟢 修改結束 -->
+                        {% endif %}
+                        <!-- 🟢 修改開始：上傳頁免責聲明 -->
+                        <div class="w-full max-w-4xl sm:max-w-full mb-8">
+                            <div class="bg-amber-100 border border-amber-300 text-amber-900 rounded-xl px-6 py-4 text-sm text-center leading-relaxed">
+                                <strong>【特別提醒】</strong> 本測驗僅為娛樂與參考，並非醫療建議。若有任何身心困擾，請尋求專業協助。
+                            </div>
+                        </div>
+                        <!-- 🟢 修改結束 -->
+                        {% if force_reupload %}
+                        <!-- 🟢 修改開始：提醒使用者正在重新上傳 -->
+                        <div class="w-full max-w-3xl sm:max-w-full mb-6">
+                            <div class="bg-white/80 border border-gray-200 text-gray-700 rounded-xl px-5 py-3 text-sm text-center">
+                                您選擇重新上傳健檢報告，提交後將覆蓋最新紀錄。
+                            </div>
+                        </div>
+                        <!-- 🟢 修改結束 -->
+                        {% endif %}
+                        {% if not auto_redirect %}
                         <div class="bg-white rounded-lg shadow-sm p-6 max-w-md w-full sm:max-w-full">
                             {% if error %}
                             <p class="text-sm text-red-600 mb-4 text-center">{{ error }}</p>
@@ -377,6 +412,7 @@
                             </div>
                             {% endif %}
                         </div>
+                        {% endif %}
                     </div>
                 </main>
             </div>
