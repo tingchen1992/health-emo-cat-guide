@@ -44,7 +44,7 @@ def home():
     return render_template("home.html", is_logged_in=is_logged_in)
 
 
-# 註冊
+# 註冊 新增性別
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
