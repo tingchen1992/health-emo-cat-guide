@@ -44,34 +44,35 @@ def home():
 
 # 註冊
 @app.route("/register", methods=["GET", "POST"])
+@app.route("/register", methods=["GET", "POST"])
 def register():
-    if request.method == "GET":
-        session.pop("_flashes", None)
-
+    # ... (前面的程式碼)
     if request.method == "POST":
         logging.debug(f"Received POST request with form data: {request.form}")
         email = request.form.get("email")
         password = request.form.get("password")
+        gender = request.form.get("gender") # 新增: 取得性別資料
         logging.debug(
-            f"Parsed form data: email={email}, password={'*' * len(password) if password else None}"
+            f"Parsed form data: email={email}, password={'*' * len(password) if password else None}, gender={gender}"
         )
 
-        if not email or not password:
-            flash("請輸入電子郵件和密碼！", "error")
-            logging.warning("Missing email or password in form submission")
-            return render_template("register.html", error="請輸入電子郵件和密碼")
-
+        if not email or not password or not gender: # 修改: 檢查性別是否為空
+            flash("請輸入電子郵件、密碼和生理性別！", "error")
+            logging.warning("Missing email, password, or gender in form submission")
+            return render_template("register.html", error="請輸入所有必填欄位")
+        
         try:
             user = auth.create_user(email=email, password=password)
             logging.debug(f"User created: uid={user.uid}, email={email}")
             db.collection("users").document(user.uid).set(
                 {
                     "email": email,
+                    "gender": gender, # 新增: 將性別存入 Firestore
                     "created_at": firestore.SERVER_TIMESTAMP,
                     "last_login": None,
                 }
             )
-            logging.debug(f"User document created in Firestore for uid: {user.uid}")
+            # ... (後面的程式碼)            logging.debug(f"User document created in Firestore for uid: {user.uid}")
             session["user_id"] = user.uid
             flash("註冊成功！請上傳健康報告。", "success")
             return redirect(url_for("upload_health"))
@@ -147,7 +148,24 @@ def upload_health():
 
     user_id = session["user_id"]
     logging.debug(f"Current user_id from session: {user_id}")
-
+    
+    # 新增: 從 Firestore 取得使用者的性別
+    try:
+        user_doc = db.collection("users").document(user_id).get()
+        if not user_doc.exists:
+            flash("找不到使用者資料！", "error")
+            return redirect(url_for("login"))
+        user_data = user_doc.to_dict()
+        user_gender = user_data.get("gender")
+        if not user_gender:
+            flash("請先完成註冊或更新您的性別資料！", "error")
+            return redirect(url_for("register"))
+        logging.debug(f"Retrieved user gender from Firestore: {user_gender}")
+    except Exception as e:
+        logging.error(f"Failed to retrieve user data from Firestore: {str(e)}")
+        flash(f"取得使用者資料失敗：{str(e)}", "error")
+        return redirect(url_for("login"))
+    
     if request.method == "POST":
         if "health_report" not in request.files:
             flash("未選擇檔案！", "error")
@@ -189,7 +207,7 @@ def upload_health():
             file_data = file.read()
             file_type = "image" if is_image else "pdf"
             analysis_data, health_score, health_warnings = analyze_health_report(
-                file_data, user_id, file_type
+                file_data, user_id, file_type, gender=user_gender # 修改: 傳遞性別給分析模組
             )
             logging.debug(
                 f"Analysis result - data: {analysis_data is not None}, score: {health_score}, warnings: {len(health_warnings)}"
