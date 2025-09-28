@@ -197,7 +197,46 @@
                 border-color: #6b7280;
                 background-color: #f3f4f6;
             }
-            
+
+            .button-reupload {
+                display: inline-flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 20px;
+                border-radius: 999px;
+                background-color: #ffffff;
+                color: #374151;
+                font-size: 16px;
+                font-weight: 600;
+                border: 1px solid rgba(17, 24, 39, 0.08);
+                box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+                transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+                white-space: nowrap;
+            }
+
+            .button-reupload:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+                border-color: rgba(17, 24, 39, 0.15);
+            }
+
+            .button-reupload:focus {
+                outline: none;
+                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+            }
+
+            .button-reupload .paw-icon {
+                font-size: 20px;
+            }
+
+            .button-reupload .upload-icon {
+                font-size: 22px;
+            }
+
+            .button-reupload .button-text {
+                letter-spacing: 0.02em;
+            }
+
             .file-input {
                 display: none;
             }
@@ -317,9 +356,10 @@
                         <div class="w-full max-w-3xl sm:max-w-full mb-8 text-center">
                             <div class="inline-block bg-white/70 border border-gray-200 text-gray-700 rounded-2xl px-6 py-4 text-base leading-relaxed shadow-sm">
                                 <p class="mb-3" style="font-size: 200%;">已找到您最近一次的健檢報告，系統將為您跳轉至心理測驗。</p>
-                                <a href="{{ url_for('upload_health', reupload=1) }}" class="inline-flex items-center gap-3 px-6 py-2.5 border border-transparent text-gray-700 rounded-full bg-white shadow hover:shadow-lg transition-all text-sm font-semibold">
-                                    <span class="material-symbols-outlined text-lg">file_upload</span>
-                                    <span class="flex items-center gap-2">🐾 我要重新上傳報告</span>
+                                <a href="{{ url_for('upload_health', reupload=1) }}" class="button-reupload">
+                                    <span class="paw-icon" aria-hidden="true">🐾</span>
+                                    <span class="button-text">我要重新上傳報告</span>
+                                    <span class="material-symbols-outlined upload-icon" aria-hidden="true">file_upload</span>
                                 </a>
                             </div>
                         </div>

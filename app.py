@@ -5,9 +5,11 @@ from firebase_admin.exceptions import FirebaseError
 import os
 from datetime import datetime
 import logging
-import requests
+import time
 from health_report_module import analyze_health_report
 from google.cloud.firestore import SERVER_TIMESTAMP
+from google import genai
+from google.genai import types as genai_types
 from dotenv import load_dotenv
 import json
 import re
@@ -46,6 +48,87 @@ def extract_json_from_response(text):
     
     return None
 
+
+def _build_genai_contents(system_instruction, conversation_history):
+    contents = []
+
+    if system_instruction:
+        contents.append(
+            genai_types.Content(
+                role="user",
+                parts=[genai_types.Part(text=str(system_instruction))],
+            )
+        )
+
+    for msg in conversation_history:
+        role = msg.get("role", "user")
+        parts = msg.get("parts", [])
+        if not parts:
+            logging.warning(f"Empty parts in message: {msg}")
+            continue
+
+        part_obj = parts[0]
+        if isinstance(part_obj, dict):
+            text = part_obj.get("text", "")
+        else:
+            text = str(part_obj)
+
+        if not text:
+            logging.warning(f"Empty text in message: {msg}")
+            continue
+
+        genai_role = "model" if role == "model" else "user"
+        contents.append(
+            genai_types.Content(
+                role=genai_role,
+                parts=[genai_types.Part(text=text)],
+            )
+        )
+
+    return contents
+
+
+def _generate_with_retry(contents, generation_config=None):
+    model_candidates = [
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
+    ]
+
+    last_error = None
+
+    for model_name in model_candidates:
+        for attempt in range(3):
+            try:
+                kwargs = {
+                    "model": model_name,
+                    "contents": contents,
+                }
+                if generation_config is not None:
+                    kwargs["config"] = generation_config
+
+                response = genai_chat_client.models.generate_content(**kwargs)
+                if getattr(response, "candidates", None):
+                    if attempt > 0 or model_name != model_candidates[0]:
+                        logging.warning(
+                            f"Gemini model '{model_name}' succeeded on attempt {attempt + 1}"
+                        )
+                    return response
+                logging.warning(
+                    f"Gemini model '{model_name}' returned empty candidates on attempt {attempt + 1}"
+                )
+            except Exception as e:
+                logging.warning(
+                    f"Gemini model '{model_name}' failed on attempt {attempt + 1}: {e}"
+                )
+                last_error = e
+            time.sleep(1)
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("Gemini API returned empty response for all candidate models")
+
 # 載入 .env 檔案
 load_dotenv()
 
@@ -80,6 +163,12 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logging.error("GEMINI_API_KEY not found in .env file")
     raise ValueError("GEMINI_API_KEY is required")
+
+try:
+    genai_chat_client = genai.Client(api_key=GEMINI_API_KEY)
+except Exception as e:
+    logging.error(f"Failed to initialise google-genai client: {e}")
+    raise
 
 # 🟢 修改：啟動時列印路由表（Flask 3 不支援 before_first_request，故保留註解）  
 # @app.before_first_request
@@ -384,7 +473,31 @@ def psychology_test():
     # 🟢 修改開始：支援心理測驗表單提交流程
     if request.method == "GET":
         session.pop("_flashes", None)
-        return render_template("psychology_test.html", is_logged_in=True)
+
+        latest_report_data = None
+        try:
+            def _report_sort_key(doc_snapshot):
+                data = doc_snapshot.to_dict() or {}
+                created = data.get("created_at")
+                if hasattr(created, "timestamp"):
+                    return created.timestamp()
+                return 0.0
+
+            if health_reports:
+                latest_snapshot = max(health_reports, key=_report_sort_key)
+                latest_report_data = latest_snapshot.to_dict() or {}
+                created_at = latest_report_data.get("created_at")
+                if hasattr(created_at, "isoformat"):
+                    latest_report_data["created_at"] = created_at.isoformat()
+        except Exception as e:
+            logging.warning(f"Failed to prepare latest health report for template: {e}")
+            latest_report_data = None
+
+        return render_template(
+            "psychology_test.html",
+            is_logged_in=True,
+            latest_health_report=latest_report_data,
+        )
 
     question1 = request.form.get("question1")
     question2 = request.form.get("question2")
@@ -427,97 +540,49 @@ def chat_api():
     try:
         logging.debug(f"Received conversationHistory: {data['conversationHistory']}")
 
-        # 格式化 Gemini API 的請求內容
-        contents = []
-        for msg in data["conversationHistory"]:
-            role = msg.get("role", "user")
-            parts = msg.get("parts", [])
-            if not parts:
-                logging.warning(f"Empty parts in message: {msg}")
-                continue
-            text = parts[0].get("text", "") if isinstance(parts[0], dict) else str(parts[0])
-            if not text:
-                logging.warning(f"Empty text in message: {msg}")
-                continue
-            gemini_role = "model" if role == "model" else "user"
-            contents.append({
-                "role": gemini_role,
-                "parts": [{"text": text}]
-            })
+        contents = _build_genai_contents(
+            data.get("systemInstruction"), data["conversationHistory"]
+        )
 
         if not contents:
             return jsonify({"error": "conversationHistory 為空或格式無效"}), 400
 
-        # 插入系統指令作為第一個使用者訊息
-        if data["systemInstruction"]:
-            contents.insert(0, {
-                "role": "user",
-                "parts": [{"text": data["systemInstruction"]}]
-            })
+        try:
+            response = _generate_with_retry(contents)
+        except Exception as e:
+            logging.error(f"Gemini generation failed: {e}")
+            return jsonify({"nextPrompt": "AI 助手暫時無法回應，請稍後再試。"}), 200
 
-        # 呼叫 Gemini API - 嘗試不同的模型端點
-        headers = {"Content-Type": "application/json"}
-        payload = {"contents": contents}
-        
-        # 嘗試不同的模型端點
-        model_endpoints = [
-            f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}",
-            f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={GEMINI_API_KEY}",
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={GEMINI_API_KEY}"
-        ]
-        
-        response = None
-        for url in model_endpoints:
-            try:
-                logging.debug(f"Trying endpoint: {url}")
-                response = requests.post(url, json=payload, headers=headers, timeout=30)
-                if response.status_code == 200:
-                    logging.debug(f"Success with endpoint: {url}")
-                    break
-                else:
-                    logging.warning(f"Endpoint failed with status {response.status_code}: {url}")
-                    if response.text:
-                        logging.warning(f"Response text: {response.text[:200]}")
-            except Exception as e:
-                logging.warning(f"Endpoint error: {url}, {str(e)}")
-                continue
-        
-        if not response or response.status_code != 200:
-            logging.error("All Gemini API endpoints failed")
-            return jsonify({"nextPrompt": "AI 助手暫時無法回應，請稍後再試。"}), 500
-        
-        # 處理 Gemini API 回應
-        response_data = response.json()
-        logging.debug(f"Gemini API response: {response_data}")
-        
-        if not response_data.get("candidates") or not response_data["candidates"][0].get("content", {}).get("parts"):
-            logging.error("Gemini API returned invalid response structure")
-            return jsonify({"nextPrompt": "無法取得回應，請稍後再試。"}), 500
-        
-        # 提取回應內容
-        reply = response_data["candidates"][0]["content"]["parts"][0]["text"]
+        if not response or not getattr(response, "candidates", None):
+            logging.error("Gemini API returned no candidates")
+            return jsonify({"nextPrompt": "無法取得回應，請稍後再試。"}), 200
+
+        candidate = response.candidates[0]
+        reply = ""
+        for part in getattr(candidate.content, "parts", []):
+            if getattr(part, "text", None):
+                reply += part.text
+
+        if not reply:
+            logging.error("Gemini candidate did not include textual content")
+            return jsonify({"nextPrompt": "無法取得回應，請稍後再試。"}), 200
+
         logging.debug(f"Raw reply: {reply}")
-        
+
         # 嘗試解析 JSON 回應
         parsed_json = extract_json_from_response(reply)
         if parsed_json and isinstance(parsed_json, dict):
             logging.debug(f"Successfully parsed JSON: {parsed_json}")
-            # 確保回應包含必要的字段
-            if "nextPrompt" in parsed_json:
+            # 若模型已依格式提供完整 JSON，就直接回傳
+            if "nextPrompt" in parsed_json or "summary" in parsed_json:
                 return jsonify(parsed_json)
-            else:
-                return jsonify({"nextPrompt": parsed_json.get("nextPrompt", reply)})
+            # 否則嘗試退回純文字內容
+            return jsonify({"nextPrompt": reply})
         else:
             # 如果無法解析 JSON，則返回原文字作為 nextPrompt
             logging.warning(f"Could not parse JSON from reply, returning as plain text: {reply}")
             return jsonify({"nextPrompt": reply})
     
-    except requests.exceptions.RequestException as e:
-        error_msg = str(e)
-        if hasattr(e, 'response') and e.response:
-            error_msg += f", response: {e.response.text[:200]}"
-        logging.error(f"Gemini API request failed: {error_msg}")
-        return jsonify({"nextPrompt": "網路好像不太穩定，請檢查連線後再試一次。"}), 500
     except Exception as e:
         logging.error(f"Unexpected error in chat_api: {str(e)}, data: {data}")
         return jsonify({"error": f"伺服器錯誤：{str(e)}"}), 500
@@ -536,93 +601,45 @@ def report_api():
     try:
         logging.debug(f"Received conversationHistory for report: {len(data['conversationHistory'])} messages")
 
-        # 格式化 Gemini API 的請求內容
-        contents = []
-        for msg in data["conversationHistory"]:
-            role = msg.get("role", "user")
-            parts = msg.get("parts", [])
-            if not parts:
-                logging.warning(f"Empty parts in message for report: {msg}")
-                continue
-            text = parts[0].get("text", "") if isinstance(parts[0], dict) else str(parts[0])
-            if not text:
-                logging.warning(f"Empty text in message for report: {msg}")
-                continue
-            gemini_role = "model" if role == "model" else "user"
-            contents.append({
-                "role": gemini_role,
-                "parts": [{"text": text}]
-            })
+        contents = _build_genai_contents(
+            data.get("systemInstruction"), data["conversationHistory"]
+        )
 
         if not contents:
             return jsonify({"error": "conversationHistory 為空或格式無效"}), 400
 
-        # 插入系統指令作為第一個使用者訊息
-        if data["systemInstruction"]:
-            contents.insert(0, {
-                "role": "user",
-                "parts": [{"text": data["systemInstruction"]}]
-            })
+        try:
+            response = _generate_with_retry(contents)
+        except Exception as e:
+            logging.error(f"Gemini report generation failed: {e}")
+            return jsonify({"summary": "模型沒有產生報告內容，請稍後再試。", "keywords": [], "emotionVector": {"valence": 50, "arousal": 50, "dominance": 50}}), 200
 
-        # 呼叫 Gemini API - 使用相同的多端點嘗試策略
-        headers = {"Content-Type": "application/json"}
-        payload = {"contents": contents}
-        
-        model_endpoints = [
-            f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}",
-            f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={GEMINI_API_KEY}",
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={GEMINI_API_KEY}"
-        ]
-        
-        response = None
-        for url in model_endpoints:
-            try:
-                logging.debug(f"Trying report endpoint: {url}")
-                response = requests.post(url, json=payload, headers=headers, timeout=30)
-                if response.status_code == 200:
-                    logging.debug(f"Success with report endpoint: {url}")
-                    break
-                else:
-                    logging.warning(f"Report endpoint failed with status {response.status_code}: {url}")
-                    if response.text:
-                        logging.warning(f"Report response text: {response.text[:200]}")
-            except Exception as e:
-                logging.warning(f"Report endpoint error: {url}, {str(e)}")
-                continue
-        
-        if not response or response.status_code != 200:
-            logging.error("All Gemini API report endpoints failed")
-            return jsonify({"summary": "無法生成報告，請稍後再試。"}), 500
-        
-        # 處理 Gemini API 回應
-        response_data = response.json()
-        logging.debug(f"Gemini API report response: {response_data}")
-        
-        # 🟢 修改：容忍沒有 candidates 或沒有 parts 的情況，回傳安全的 fallback JSON
-        candidates = response_data.get("candidates")
-        if not candidates:
+        if not response or not getattr(response, "candidates", None):
             logging.warning("Gemini report: no candidates, fallback to empty summary")
             report_json = {
                 "summary": "模型沒有產生報告內容，請稍後再試。",
                 "keywords": [],
                 "emotionVector": {"valence": 50, "arousal": 50, "dominance": 50}
             }
-            return jsonify(report_json), 200  # 🟢 修改：避免 500，改為可渲染的預設值
+            return jsonify(report_json), 200
 
-        parts = candidates[0].get("content", {}).get("parts")
-        if not parts:
-            logging.warning("Gemini report: candidates present but no parts")
+        candidate = response.candidates[0]
+        summary_text = ""
+        for part in getattr(candidate.content, "parts", []):
+            if getattr(part, "text", None):
+                summary_text += part.text
+
+        if not summary_text:
+            logging.warning("Gemini report: candidate present but empty text")
             report_json = {
                 "summary": "模型沒有提供完整內容。",
                 "keywords": [],
                 "emotionVector": {"valence": 50, "arousal": 50, "dominance": 50}
             }
-            return jsonify(report_json), 200  # 🟢 修改：同上
+            return jsonify(report_json), 200
 
-        # 提取回應內容（維持原邏輯）
-        summary_text = parts[0]["text"]
         logging.debug(f"Raw report summary: {summary_text}")
-        
+
         # 嘗試解析回應為 JSON（維持原邏輯）
         parsed_json = extract_json_from_response(summary_text)
         if parsed_json and isinstance(parsed_json, dict):
@@ -638,12 +655,6 @@ def report_api():
             }
             return jsonify(report_json)
     
-    except requests.exceptions.RequestException as e:
-        error_msg = str(e)
-        if hasattr(e, 'response') and e.response:
-            error_msg += f", response: {e.response.text[:200]}"
-        logging.error(f"Gemini API report request failed: {error_msg}")
-        return jsonify({"summary": "抱歉，整理總結時出了點小差錯，請稍後再試。"}), 500
     except Exception as e:
         logging.error(f"Unexpected error in report_api: {str(e)}, data: {data}")
         return jsonify({"error": f"伺服器錯誤：{str(e)}"}), 500

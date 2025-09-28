@@ -180,25 +180,6 @@
                             悄悄話總結
                         </h3>
                         <div id="report-summary" class="text-[var(--text-secondary)] text-sm prose max-w-none prose-p:my-1">完成對話後，這裡會出現一份暖心總結。</div>
-                        <div id="score-section" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 hidden" style="display: none !important;">
-                            <div class="bg-gray-50 p-3 rounded-lg text-center">
-                                <p class="text-xs text-gray-500">心理分數</p>
-                                <p id="mind-score" class="text-2xl font-bold text-purple-700 mt-1">--</p>
-                            </div>
-                            <div class="bg-gray-50 p-3 rounded-lg text-center">
-                                <p class="text-xs text-gray-500">身理分數</p>
-                                <p id="body-score" class="text-2xl font-bold text-green-700 mt-1">--</p>
-                            </div>
-                            <div class="bg-gray-50 p-3 rounded-lg text-center">
-                                <p class="text-xs text-gray-500">綜合分數</p>
-                                <p id="combined-score" class="text-2xl font-bold text-blue-700 mt-1">--</p>
-                            </div>
-                        </div>
-                         <h3 id="json-report-title" class="font-semibold mb-2 mt-4 text-slate-600 flex items-center gap-2 hidden" style="display: none !important;">
-                             <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="currentColor"><path d="M9.4,16.6L4.8,12l4.6-4.6L8,6l-6,6l6,6L9.4,16.6z M14.6,16.6l4.6-4.6l-4.6-4.6L16,6l6,6l-6,6L14.6,16.6z"/></svg>
-                            心情原數據 (JSON)
-                        </h3>
-                        <pre id="json-report" class="bg-slate-800 text-slate-200 text-xs p-3 rounded-md overflow-x-auto hidden" style="display: none !important;"><code>尚未生成總結</code></pre>
                     </div>
                 </div>
             </main>
@@ -232,6 +213,7 @@
 
     <script>
         // --- DOM Elements ---
+        const healthReportData = {{ latest_health_report|tojson|default('null', true)|safe }};
         const selectionView = document.getElementById('selection-view');
         const dashboardView = document.getElementById('dashboard-view');
         const dashboardPanel = document.getElementById('dashboard-panel');
@@ -241,10 +223,6 @@
         const sendButton = document.getElementById('send-button');
         const quickRepliesContainer = document.getElementById('quick-replies-container');
         const reportSummary = document.getElementById('report-summary');
-        const jsonReport = document.getElementById('json-report');
-        const mindScoreEl = document.getElementById('mind-score');
-        const bodyScoreEl = document.getElementById('body-score');
-        const combinedScoreEl = document.getElementById('combined-score');
         const confirmModal = document.getElementById('confirm-modal');
         const confirmReturnBtn = document.getElementById('confirm-return-btn');
         const cancelReturnBtn = document.getElementById('cancel-return-btn');
@@ -418,10 +396,6 @@
             messageInput.value = '';
             quickRepliesContainer.innerHTML = '';
             reportSummary.textContent = '完成對話後，這裡會出現一份暖心總結。';
-            jsonReport.querySelector('code').textContent = '尚未生成總結';
-            mindScoreEl.textContent = '--';
-            bodyScoreEl.textContent = '--';
-            combinedScoreEl.textContent = '--';
             updateProgressBar(0);
             
             // 移除生成貓咪圖卡按鈕
@@ -550,12 +524,14 @@
                     (reportData.emotionVector.dominance * 0.3) + 
                     ((100 - Math.abs(reportData.emotionVector.arousal - 50)) * 0.1)
                 );
-                
+                const summaryText = getSummaryPlainText(reportData.summary);
+
                 const bodyScore = Math.floor(Math.random() * (95 - 75 + 1)) + 75; // Placeholder
                 const combinedScore = Math.round((mindScore + bodyScore) / 2);
 
                 const finalReportData = {
                   ...reportData,
+                  summary: summaryText,
                   mindScore: Math.max(0, Math.min(100, mindScore)),
                   bodyScore: bodyScore,
                   combinedScore: Math.max(0, Math.min(100, combinedScore)),
@@ -676,14 +652,20 @@
                     return `${role}: ${text}`;
                 })
                 .join('\n\n');
-            
+           
+            const healthSummaryBlock = formatHealthReportForPrompt();
             const personaPrompt = appState.mode === 'deep-chat' 
                 ? '請你扮演「喵奶奶」的角色，用極度溫柔、慈祥且充滿鼓勵的口吻，像貓咪一樣慵懶溫暖地做出總結。在總結中，請適時使用 **粗體字** 來強調重點，並在結尾加上一個溫暖的表情符號，例如 ✨ 或 ❤️。語氣必須非常正面，巧妙地融入貓咪元素（例如：呼嚕、毛線球、曬太陽等）。'
                 : '請你扮演「喵記者」的角色，用專業、敏銳且充滿活力的口吻，像貓咪一樣好奇地做出總結。在總結中，請適時使用 **粗體字** 來強調重點，並在結尾加上一個活潑的表情符號，例如 ✨ 或 🐾。語氣必須非常正面，巧妙地融入貓咪元素（例如：貓掌、頭條、獨家新聞等）。';
 
             return `
                 你的角色: 你是一位專業的心理分析師，同時也是一位溫暖的貓咪夥伴。
-                你的任務: 根據以下的對話紀錄，產生一份結構化的分析報告。
+                你的任務: 根據以下的健康報告摘要與對話紀錄，產生一份結構化的分析報告，並將身心狀態串連在一起給出建議。
+
+                健康報告摘要:
+                ---
+                ${healthSummaryBlock}
+                ---
 
                 對話紀錄:
                 ---
@@ -828,15 +810,106 @@
         }
 
         function displayReport(reportData) {
-            let formattedSummary = reportData.summary
-                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-purple-600">$1</strong>');
+            const formattedSummary = formatSummary(reportData.summary);
             reportSummary.innerHTML = `<p>${formattedSummary}</p>`;
-            
-            // 先顯示彈窗，不要直接切換到 dashboard
+
             showResultModal();
-            
-            // 儲存數據供後續使用
             window.currentReportData = reportData;
+        }
+
+        function formatHealthReportForPrompt() {
+            if (!healthReportData) {
+                return '健康報告資料不足，僅能依對話資訊提供建議。';
+            }
+
+            const score = healthReportData.health_score;
+            const warnings = Array.isArray(healthReportData.health_warnings)
+                ? healthReportData.health_warnings.filter(Boolean)
+                : [];
+            const warningText = warnings.length ? warnings.join('、') : '目前沒有特別警示項目';
+
+            const vitalStats = healthReportData.vital_stats || {};
+            const vitalLines = Object.entries(vitalStats)
+                .filter(([, value]) => value !== null && value !== '' && value !== undefined)
+                .map(([key, value]) => `${key}: ${value}`)
+                .slice(0, 12)
+                .join('\n');
+
+            return [
+                `健康分數：${typeof score === 'number' ? score : '無提供'}`,
+                `重點警示：${warningText}`,
+                vitalLines ? `主要指標：\n${vitalLines}` : '主要指標：資料不足'
+            ].join('\n');
+        }
+
+        function buildHealthInsightSnippet() {
+            if (!healthReportData) return '';
+
+            const warnings = Array.isArray(healthReportData.health_warnings)
+                ? healthReportData.health_warnings.filter(Boolean)
+                : [];
+
+            const adviceCatalog = [
+                { pattern: /(糖化血色素|hemoglobin_a1c)/i, advice: '調整甜食與精緻澱粉攝取，安排規律運動幫助血糖穩定' },
+                { pattern: /(三酸甘油酯|triglycerides)/i, advice: '少吃油炸與高糖飲品，改以高纖蔬果與好油脂為主' },
+                { pattern: /(總膽固醇|total_cholesterol|低密度|ldl)/i, advice: '試著增加日常活動量並挑選低脂蛋白質' },
+                { pattern: /(體重|bmi)/i, advice: '維持規律運動與均衡飲食，幫身體找到舒適節奏' },
+                { pattern: /(血壓|systolic|diastolic)/i, advice: '留意鹽分與作息，放慢生活步調讓血壓放鬆' },
+                { pattern: /(尿蛋白|urine_protein|尿糖|urine_glucose)/i, advice: '多補水、適量運動並定期追蹤腎臟狀況' }
+            ];
+
+            const advices = [];
+            warnings.forEach(warning => {
+                for (const entry of adviceCatalog) {
+                    if (entry.pattern.test(warning)) {
+                        if (!advices.includes(entry.advice)) {
+                            advices.push(entry.advice);
+                        }
+                        return;
+                    }
+                }
+            });
+
+            if (!advices.length && typeof healthReportData.health_score === 'number') {
+                if (healthReportData.health_score >= 80) {
+                    advices.push('持續保持好習慣，讓身體維持在喜歡的節奏');
+                } else {
+                    advices.push('規律動一動、調整飲食比例，讓身體慢慢回到舒服狀態');
+                }
+            }
+
+            return advices.slice(0, 2).join('，');
+        }
+
+        function getSummaryPlainText(rawSummary) {
+            const cleaned = (rawSummary || '').trim();
+            const summaryText = (!cleaned || /模型沒有產生報告內容/.test(cleaned))
+                ? buildFallbackSummary()
+                : cleaned;
+            return summaryText.replace(/\*\*(.*?)\*\*/g, '$1');
+        }
+
+        function formatSummary(rawSummary) {
+            const plainText = getSummaryPlainText(rawSummary);
+            return plainText.replace(/\*\*(.*?)\*\*/g, '<strong class="text-purple-600">$1</strong>');
+        }
+
+        function buildFallbackSummary() {
+            const userMessages = appState.conversationHistory
+                .filter(msg => msg.role === 'user')
+                .map(msg => {
+                    const part = Array.isArray(msg.parts) && msg.parts.length ? msg.parts[0] : null;
+                    if (!part) return '';
+                    if (typeof part === 'string') return part;
+                    return part.text || '';
+                })
+                .filter(Boolean);
+
+            const latestShare = userMessages.length ? userMessages[userMessages.length - 1] : '你剛剛分享的心情';
+            const snippet = latestShare.length > 20 ? `${latestShare.slice(0, 20)}…` : latestShare;
+            const healthHint = buildHealthInsightSnippet();
+            const healthSentence = healthHint ? `也可以試著${healthHint}，讓身體慢慢找到舒服的節奏。` : '';
+            return `我聽見你提到「${snippet}」，那份在意很真實。${healthSentence}記得放慢腳步、給自己一點緩衝，必要時也和信任的夥伴聊聊。我會在這裡陪你，一起等心情變得更輕鬆。✨`;
         }
 
     </script>
