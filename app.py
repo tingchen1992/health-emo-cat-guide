@@ -324,8 +324,9 @@ def upload_health():
             )
 
         # 儲存到 Firestore
-        doc_ref = db.collection("health_reports").add(health_report_doc)
-        report_id = doc_ref[1].id
+        doc_ref = db.collection("health_reports").document()
+        doc_ref.set(health_report_doc)
+        report_id = doc_ref.id
         logging.debug(
             f"Health report SAVED to Firestore for user: {user_id}, report_id: {report_id}"
         )

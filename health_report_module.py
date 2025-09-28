@@ -1,12 +1,13 @@
 import json
 import logging
 import os
+import time
 from io import BytesIO
 from PIL import Image
 # 🟢 修改（google-genai）：切換到新的 google-genai 套件
 from google import genai
 from google.genai import types as genai_types
-from google.genai.types import HarmBlockThreshold, HarmCategory, SafetySetting, GenerationConfig
+from google.genai.types import HarmBlockThreshold, HarmCategory, SafetySetting
 from dotenv import load_dotenv
 import datetime
 import pdfplumber
@@ -26,12 +27,12 @@ try:
     if not GEMINI_API_KEY:
         raise ValueError("GEMINI_API_KEY environment variable not set")
     genai_client = genai.Client(api_key=GEMINI_API_KEY)
-    _MODEL_NAME = "gemini-2.5-flash"
-    _SAFETY_SETTINGS = [
-        SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_NONE),
-        SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_NONE),
-        SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=HarmBlockThreshold.BLOCK_NONE),
-        SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_NONE),
+    _MODEL_PRIMARY = "gemini-2.5-flash"
+    _MODEL_FALLBACKS = [
+        "gemini-2.0-flash-exp",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
+        "gemini-2.5-flash-lite",
     ]
     logging.debug("Gemini API initialized successfully.")
 except Exception as e:
@@ -39,14 +40,55 @@ except Exception as e:
     raise Exception("Gemini API initialization failed.")
 
 
-def _generate_gemini_content(contents, generation_config):
+def _generate_gemini_content(parts, generation_config=None):
     """🟢 修改（google-genai）：透過新版 client 呼叫 Gemini。"""
-    return genai_client.models.generate_content(
-        model=_MODEL_NAME,
-        contents=contents,
-        generation_config=generation_config,
-        safety_settings=_SAFETY_SETTINGS,
-    )
+    if not isinstance(parts, (list, tuple)):
+        parts = [parts]
+
+    if parts and isinstance(parts[0], genai_types.Content):
+        contents = list(parts)
+    else:
+        user_parts = []
+        for part in parts:
+            if isinstance(part, genai_types.Part):
+                user_parts.append(part)
+            else:
+                user_parts.append(genai_types.Part(text=str(part)))
+        contents = [genai_types.Content(role="user", parts=user_parts)]
+
+    model_candidates = [_MODEL_PRIMARY, *_MODEL_FALLBACKS]
+    last_error = None
+
+    for model_name in model_candidates:
+        kwargs = {
+            "model": model_name,
+            "contents": contents,
+        }
+        if generation_config is not None:
+            kwargs["generation_config"] = generation_config
+
+        for attempt in range(3):
+            try:
+                response = genai_client.models.generate_content(**kwargs)
+                if getattr(response, "candidates", None):
+                    if model_name != _MODEL_PRIMARY or attempt > 0:
+                        logging.warning(
+                            f"Gemini model '{model_name}' succeeded on attempt {attempt + 1}"
+                        )
+                    return response
+                logging.warning(
+                    f"Gemini model '{model_name}' returned empty candidates on attempt {attempt + 1}"
+                )
+            except Exception as e:
+                logging.warning(
+                    f"Gemini model '{model_name}' failed on attempt {attempt + 1}: {e}"
+                )
+                last_error = e
+            time.sleep(1)
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("Gemini API returned empty response for all candidate models")
 
 # Global variables to store health standards and alias mappings
 HEALTH_STANDARDS = {}
@@ -159,12 +201,10 @@ def analyze_image_with_gemini(image_data, user_uid, gender):
             data=image_buffer.getvalue(), mime_type=f"image/{img.format.lower()}"
         )
 
-        response = _generate_gemini_content(
-            [prompt, image_part],
-            generation_config=GenerationConfig(
-                response_mime_type="application/json", temperature=0.0
-            ),
-        )
+        response = _generate_gemini_content([
+            prompt,
+            image_part,
+        ])
 
         logging.info("Gemini image analysis complete, processing returned data...")
         gemini_output_str = (
@@ -200,12 +240,7 @@ def analyze_pdf_with_gemini(pdf_data, user_uid, gender):
     prompt = get_gemini_prompt(user_uid, "pdf", gender)
     
     try:
-        response = _generate_gemini_content(
-            [prompt, text],
-            generation_config=GenerationConfig(
-                response_mime_type="application/json", temperature=0.0
-            ),
-        )
+        response = _generate_gemini_content([prompt, text])
 
         logging.info("Gemini PDF analysis complete, processing returned data...")
         gemini_output_str = (
