@@ -150,7 +150,7 @@
         }
         
         .cat-image {
-            height: 240px;
+            height: 320px;
             position: relative;
             overflow: hidden;
         }
@@ -305,7 +305,7 @@
             }
             
             .cat-image {
-                height: 200px;
+                height: 250px;
             }
             
             .bottom-cta {
@@ -376,293 +376,294 @@
             </div>
 
             <div class="cats-grid">
-                <!-- 貓咪 1: 好奇探險家 -->
-                <div class="cat-card" onclick="selectCat(this, '好奇探險家')">
+                <!-- 貓咪 1: 暖心貓（布偶貓） -->
+                <div class="cat-card" onclick="selectCat(this, '暖心貓（布偶貓）')">
                     <div class="cat-image">
-                        <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="好奇探險家">
-                        <div class="cat-badge">冒險型</div>
+                        <img src="{{ url_for('static', filename='cat_cards/images/cats/A1.png') }}" alt="暖心貓（布偶貓）">
+                        <div class="cat-badge">療癒型</div>
                     </div>
                     <div class="cat-content">
-                        <h3 class="cat-name">好奇探險家</h3>
+                        <h3 class="cat-name">暖心貓（布偶貓）</h3>
                         <p class="cat-description">
-                            充滿活力與好奇心，總是在尋找新的體驗。喜歡探索未知的領域，勇於嘗試新事物。
+                            柔軟如棉花糖的擁抱專家，總在你疲憊時靜靜靠近，用溫柔眼神療癒每一絲情緒波動。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">self_improvement</span>
+                                安撫情緒
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">spa</span>
+                                溫暖能量
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">volunteer_activism</span>
+                                心靈抱抱
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">local_florist</span>
+                                花語：茶花—理性中的溫柔與謙遜
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 2: 晴天貓（橘貓） -->
+                <div class="cat-card" onclick="selectCat(this, '晴天貓（橘貓）')">
+                    <div class="cat-image">
+                        <img src="{{ url_for('static', filename='cat_cards/images/cats/A2.png') }}" alt="晴天貓（橘貓）">
+                        <div class="cat-badge">樂觀型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">晴天貓（橘貓）</h3>
+                        <p class="cat-description">
+                            炎夏的陽光化身，總是帶著笑容衝第一，把冒險與好心情一起分享給身邊的每個人。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">wb_sunny</span>
+                                陽光氣場
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">emoji_emotions</span>
+                                傳染笑容
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">diversity_3</span>
+                                社交小隊長
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">local_florist</span>
+                                花語：馬蹄蓮—智慧與靈氣
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 3: 活力貓（俄羅斯藍貓） -->
+                <div class="cat-card" onclick="selectCat(this, '活力貓（俄羅斯藍貓）')">
+                    <div class="cat-image">
+                        <img src="{{ url_for('static', filename='cat_cards/images/cats/A3.png') }}" alt="活力貓（俄羅斯藍貓）">
+                        <div class="cat-badge">健康型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">活力貓（俄羅斯藍貓）</h3>
+                        <p class="cat-description">
+                            清爽藍灰短毛下藏著滿滿爆發力，熱愛運動與自我挑戰，是健康生活的最佳教練。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">bolt</span>
+                                能量滿格
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">health_and_safety</span>
+                                體能教練
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">target</span>
+                                自律進化
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">local_florist</span>
+                                花語：茴香花—健康與安穩生活
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 4: 恬靜貓（波斯貓） -->
+                <div class="cat-card" onclick="selectCat(this, '恬靜貓（波斯貓）')">
+                    <div class="cat-image">
+                        <img src="{{ url_for('static', filename='cat_cards/images/cats/B1.png') }}" alt="恬靜貓（波斯貓）">
+                        <div class="cat-badge">恬靜型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">恬靜貓（波斯貓）</h3>
+                        <p class="cat-description">
+                            喜歡沉浸在柔柔光線裡，用輕柔呼嚕提醒人珍惜慢節奏，陪你一起放慢步調好好休息。
                         </p>
                         <div class="cat-traits">
                             <div class="trait-item">
                                 <span class="material-symbols-outlined">favorite</span>
-                                活躍好動
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">psychology</span>
-                                外向開朗
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">bolt</span>
-                                精力充沛
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">auto_awesome</span>
-                                富有創意
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 貓咪 2: 智慧觀察者 -->
-                <div class="cat-card" onclick="selectCat(this, '智慧觀察者')">
-                    <div class="cat-image">
-                        <img src="https://images.unsplash.com/photo-1573865526739-10659fec78a5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="智慧觀察者">
-                        <div class="cat-badge">分析型</div>
-                    </div>
-                    <div class="cat-content">
-                        <h3 class="cat-name">智慧觀察者</h3>
-                        <p class="cat-description">
-                            深思熟慮，善於觀察和分析。在做決定前總是會仔細思考，擁有深刻的洞察力。
-                        </p>
-                        <div class="cat-traits">
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">smart_toy</span>
-                                理智聰明
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">psychology</span>
-                                內向沉穩
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">lightbulb</span>
-                                策略思考
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">balance</span>
-                                平衡理性
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 貓咪 3: 社交蝴蝶 -->
-                <div class="cat-card" onclick="selectCat(this, '社交蝴蝶')">
-                    <div class="cat-image">
-                        <img src="https://images.unsplash.com/photo-1533738363-b7f9aef128ce?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="社交蝴蝶">
-                        <div class="cat-badge">友善型</div>
-                    </div>
-                    <div class="cat-content">
-                        <h3 class="cat-name">社交蝴蝶</h3>
-                        <p class="cat-description">
-                            外向友善，善於交際。在社交場合中如魚得水，喜歡與他人建立聯繫和友誼。
-                        </p>
-                        <div class="cat-traits">
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">groups</span>
-                                社交達人
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">sentiment_satisfied</span>
-                                樂觀積極
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">emoji_people</span>
-                                魅力十足
+                                喜歡被呵護
                             </div>
                             <div class="trait-item">
                                 <span class="material-symbols-outlined">volunteer_activism</span>
-                                富有同情心
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 貓咪 4: 溫柔療癒師 -->
-                <div class="cat-card" onclick="selectCat(this, '溫柔療癒師')">
-                    <div class="cat-image">
-                        <img src="https://images.unsplash.com/photo-1596854407944-bf87f6fdd49e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="溫柔療癒師">
-                        <div class="cat-badge">療癒型</div>
-                    </div>
-                    <div class="cat-content">
-                        <h3 class="cat-name">溫柔療癒師</h3>
-                        <p class="cat-description">
-                            性格溫和，具有療癒人心的力量。總是能給身邊的人帶來安慰和溫暖，是最佳的傾聽者。
-                        </p>
-                        <div class="cat-traits">
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">healing</span>
-                                療癒能力
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">favorite_border</span>
-                                溫柔體貼
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">self_care</span>
-                                關懷他人
+                                溫柔回饋
                             </div>
                             <div class="trait-item">
                                 <span class="material-symbols-outlined">spa</span>
-                                平靜安詳
+                                放慢腳步
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">local_florist</span>
+                                花語：紫色牡丹—高貴與神秘
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 貓咪 5: 獨立思考家 -->
-                <div class="cat-card" onclick="selectCat(this, '獨立思考家')">
+                <!-- 貓咪 5: 日常貓（三花貓） -->
+                <div class="cat-card" onclick="selectCat(this, '日常貓（三花貓）')">
                     <div class="cat-image">
-                        <img src="https://images.unsplash.com/photo-1571566882372-1598d88abd90?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="獨立思考家">
-                        <div class="cat-badge">獨立型</div>
+                        <img src="{{ url_for('static', filename='cat_cards/images/cats/B2.png') }}" alt="日常貓（三花貓）">
+                        <div class="cat-badge">平衡型</div>
                     </div>
                     <div class="cat-content">
-                        <h3 class="cat-name">獨立思考家</h3>
+                        <h3 class="cat-name">日常貓（三花貓）</h3>
                         <p class="cat-description">
-                            喜歡獨處和思考，有自己的節奏和想法。不隨波逐流，堅持自己的原則和信念。
+                            把生活過成理想樣子的日常導師，懂得在柴米油鹽中找到小確幸，帶來穩定與踏實。
                         </p>
                         <div class="cat-traits">
                             <div class="trait-item">
-                                <span class="material-symbols-outlined">person</span>
-                                獨立自主
+                                <span class="material-symbols-outlined">balance</span>
+                                生活節奏
                             </div>
                             <div class="trait-item">
-                                <span class="material-symbols-outlined">thinking</span>
-                                深度思考
+                                <span class="material-symbols-outlined">home</span>
+                                家庭溫度
                             </div>
                             <div class="trait-item">
-                                <span class="material-symbols-outlined">shield</span>
-                                堅持原則
+                                <span class="material-symbols-outlined">assignment</span>
+                                善於規劃
                             </div>
                             <div class="trait-item">
-                                <span class="material-symbols-outlined">psychology_alt</span>
-                                內省深刻
+                                <span class="material-symbols-outlined">local_florist</span>
+                                花語：火鶴花—獨立尊貴與快樂幸運
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 貓咪 6: 活力運動員 -->
-                <div class="cat-card" onclick="selectCat(this, '活力運動員')">
+                <!-- 貓咪 6: 外強內柔貓（英短銀漸層） -->
+                <div class="cat-card" onclick="selectCat(this, '外強內柔貓（英短銀漸層）')">
                     <div class="cat-image">
-                        <img src="https://images.unsplash.com/photo-1574231164645-d6f0e8553590?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="活力運動員">
-                        <div class="cat-badge">運動型</div>
+                        <img src="{{ url_for('static', filename='cat_cards/images/cats/B3.png') }}" alt="外強內柔貓（英短銀漸層）">
+                        <div class="cat-badge">溫柔型</div>
                     </div>
                     <div class="cat-content">
-                        <h3 class="cat-name">活力運動員</h3>
+                        <h3 class="cat-name">外強內柔貓（英短銀漸層）</h3>
                         <p class="cat-description">
-                            精力旺盛，熱愛運動和挑戰。總是保持積極的態度，喜歡透過身體活動來釋放能量。
+                            外表帥氣冷靜，內心卻藏著一顆柔軟糖心，需要時間才能聽見它專屬的低語告白。
                         </p>
                         <div class="cat-traits">
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">fitness_center</span>
-                                運動健將
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">energy_savings_leaf</span>
-                                活力無限
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">trophy</span>
-                                競爭精神
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">trending_up</span>
-                                積極進取
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 貓咪 7: 藝術創作者 -->
-                <div class="cat-card" onclick="selectCat(this, '藝術創作者')">
-                    <div class="cat-image">
-                        <img src="https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="藝術創作者">
-                        <div class="cat-badge">藝術型</div>
-                    </div>
-                    <div class="cat-content">
-                        <h3 class="cat-name">藝術創作者</h3>
-                        <p class="cat-description">
-                            富有藝術天賦和創造力，能從平凡中發現美。喜歡用獨特的方式表達自己的想法和情感。
-                        </p>
-                        <div class="cat-traits">
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">palette</span>
-                                藝術天賦
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">brush</span>
-                                創意無限
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">star</span>
-                                獨特視角
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">colorize</span>
-                                感性豐富
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 貓咪 8: 守護保衛者 -->
-                <div class="cat-card" onclick="selectCat(this, '守護保衛者')">
-                    <div class="cat-image">
-                        <img src="https://images.unsplash.com/photo-1592194996308-7b43878e84a6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="守護保衛者">
-                        <div class="cat-badge">保護型</div>
-                    </div>
-                    <div class="cat-content">
-                        <h3 class="cat-name">守護保衛者</h3>
-                        <p class="cat-description">
-                            忠誠可靠，有強烈的保護慾。總是守護著重要的人事物，是值得信賴的夥伴和朋友。
-                        </p>
-                        <div class="cat-traits">
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">security</span>
-                                忠誠守護
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">verified</span>
-                                值得信賴
-                            </div>
                             <div class="trait-item">
                                 <span class="material-symbols-outlined">shield_person</span>
-                                保護他人
+                                保護慾強
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">sentiment_satisfied</span>
+                                內斂溫柔
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">lock_open</span>
+                                逐步敞開
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">local_florist</span>
+                                花語：綬草—細膩心意與柔軟情感
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 7: 暖伴貓（摺耳貓） -->
+                <div class="cat-card" onclick="selectCat(this, '暖伴貓（摺耳貓）')">
+                    <div class="cat-image">
+                        <img src="{{ url_for('static', filename='cat_cards/images/cats/C1.png') }}" alt="暖伴貓（摺耳貓）">
+                        <div class="cat-badge">陪伴型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">暖伴貓（摺耳貓）</h3>
+                        <p class="cat-description">
+                            慢熟卻貼心的靈魂，喜歡在柔軟角落陪你細聊，讓生活節奏慢下來，感受彼此的溫度。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">bedtime</span>
+                                享受放鬆
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">diversity_1</span>
+                                喜歡陪伴
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">psychiatry</span>
+                                情感細膩
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">local_florist</span>
+                                花語：法國小雛菊—靜靜陪伴與理解
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 8: 深思貓（黑貓） -->
+                <div class="cat-card" onclick="selectCat(this, '深思貓（黑貓）')">
+                    <div class="cat-image">
+                        <img src="{{ url_for('static', filename='cat_cards/images/cats/C2.png') }}" alt="深思貓（黑貓）">
+                        <div class="cat-badge">洞察型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">深思貓（黑貓）</h3>
+                        <p class="cat-description">
+                            外表淡定內心細膩，擅長傾聽並用靜靜的眼神分享支持，像一本讓人越讀越安心的日記。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">psychology</span>
+                                內心世界深
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">cloud</span>
+                                想像力豐富
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">record_voice_over</span>
+                                擅長傾聽
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">local_florist</span>
+                                花語：鈴蘭花—思念與安穩祝福
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪 9: 靜心貓（暹羅貓） -->
+                <div class="cat-card" onclick="selectCat(this, '靜心貓（暹羅貓）')">
+                    <div class="cat-image">
+                        <img src="{{ url_for('static', filename='cat_cards/images/cats/C3.png') }}" alt="靜心貓（暹羅貓）">
+                        <div class="cat-badge">專注型</div>
+                    </div>
+                    <div class="cat-content">
+                        <h3 class="cat-name">靜心貓（暹羅貓）</h3>
+                        <p class="cat-description">
+                            細膩講究的專注派，總想把每件事做到最好。陪她深呼吸，你會看到細緻又真誠的心。
+                        </p>
+                        <div class="cat-traits">
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">warning_amber</span>
+                                警覺度高
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">assignment_turned_in</span>
+                                完美要求
                             </div>
                             <div class="trait-item">
                                 <span class="material-symbols-outlined">handshake</span>
-                                責任感強
+                                需要支持
+                            </div>
+                            <div class="trait-item">
+                                <span class="material-symbols-outlined">local_florist</span>
+                                花語：金魚草—力量與多變魅力
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <!-- 貓咪 9: 夢想實踐者 -->
-                <div class="cat-card" onclick="selectCat(this, '夢想實踐者')">
-                    <div class="cat-image">
-                        <img src="https://images.unsplash.com/photo-1506891536236-3e07892564b7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="夢想實踐者">
-                        <div class="cat-badge">實踐型</div>
-                    </div>
-                    <div class="cat-content">
-                        <h3 class="cat-name">夢想實踐者</h3>
-                        <p class="cat-description">
-                            有遠大的夢想和目標，並且會努力實現。不只是空想家，更是行動派，勇於追求理想。
-                        </p>
-                        <div class="cat-traits">
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">rocket_launch</span>
-                                追求夢想
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">target</span>
-                                目標明確
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">construction</span>
-                                實際行動
-                            </div>
-                            <div class="trait-item">
-                                <span class="material-symbols-outlined">celebration</span>
-                                樂觀進取
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            </div>
             </div>
 
             <!-- 底部行動呼籲 -->
