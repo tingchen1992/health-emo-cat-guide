@@ -6,6 +6,16 @@ import os
 from datetime import datetime
 import logging
 import time
+import requests  # 🟡 0929修改：呼叫外部貓圖來源
+import random  # 🟡 0929修改：貓咪圖卡風格隨機與備援使用
+import textwrap  # 🟡 0929修改：圖卡文字換行處理
+import hashlib  # 🟡 0929修改：圖卡輸出避免檔名衝突
+import imghdr  # 🟡 0929修改：驗證下載圖片格式
+from pathlib import Path  # 🟡 0929修改：設定圖卡輸出路徑
+from io import BytesIO  # 🟡 0929修改：處理圖片位元組資料
+from urllib.parse import urlparse  # 🟡 0929修改：驗證圖片網址安全性
+
+from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter  # 🟡 0929修改：繪製圖卡
 from health_report_module import analyze_health_report
 from google.cloud.firestore import SERVER_TIMESTAMP
 from google import genai
@@ -14,39 +24,24 @@ from dotenv import load_dotenv
 import json
 import re
 
-def extract_json_from_response(text):
-    """
-    從 Gemini 的回應中提取 JSON 內容
-    處理包含 ```json 代碼塊的情況
-    """
-    if not text:
-        return None
-    
-    # 嘗試直接解析 JSON
-    try:
-        return json.loads(text)
-    except:
-        pass
-    
-    # 嘗試從 markdown 代碼塊中提取 JSON
-    json_pattern = r'```json\s*(\{.*?\})\s*```'
-    match = re.search(json_pattern, text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(1))
-        except:
-            pass
-    
-    # 嘗試從文字中找到 JSON 對象
-    json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
-    match = re.search(json_pattern, text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group())
-        except:
-            pass
-    
-    return None
+def extract_json_from_response(text: str) -> dict:
+    """抽取第一個 JSON 物件並解析。"""  # 0929修改03：強化解析容錯
+    if text is None:
+        raise ValueError("LLM returned None")
+
+    raw = str(text).strip()
+
+    raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.IGNORECASE)
+    raw = re.sub(r"\s*```$", "", raw)
+
+    match = re.search(r"\{[\s\S]*\}", raw)
+    if not match:
+        raise ValueError(f"No JSON object found in: {raw[:200]}")
+
+    candidate = match.group(0)
+    candidate = candidate.replace("＂", '"').replace("＇", "'").replace("\ufeff", "")
+
+    return json.loads(candidate)
 
 
 def _build_genai_contents(system_instruction, conversation_history):
@@ -92,9 +87,7 @@ def _generate_with_retry(contents, generation_config=None):
     model_candidates = [
         "gemini-2.5-flash",
         "gemini-2.5-flash-lite",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
-    ]
+    ]  # 0929修改04：移除 1.5 系列，改用 2.5 模型
 
     last_error = None
 
@@ -129,12 +122,549 @@ def _generate_with_retry(contents, generation_config=None):
         raise last_error
     raise RuntimeError("Gemini API returned empty response for all candidate models")
 
+
+# 🟡 0929修改：共用工具
+def _safe_url(url: str | None) -> str | None:
+    if not url:
+        return None
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme in {"http", "https"}:
+            return url
+    except ValueError:
+        pass
+    return None
+
+
+def _load_font(size: int) -> ImageFont.ImageFont:
+    for path in FONT_CANDIDATES:
+        font_path = Path(path)
+        if font_path.exists():
+            try:
+                return ImageFont.truetype(str(font_path), size)
+            except Exception:
+                continue
+    logging.debug("Font fallback engaged for size %s", size)
+    return ImageFont.load_default()
+
+
+def _wrap_text(text: str | None, max_chars: int = 18) -> str:
+    if not text:
+        return ""
+    collapsed = str(text).replace("\n", " ")
+    return "\n".join(textwrap.wrap(collapsed, width=max_chars, break_long_words=True))
+
+
+def _hex_to_rgb(hex_value: str) -> tuple[int, int, int]:
+    hex_value = hex_value.lstrip("#")
+    return tuple(int(hex_value[i : i + 2], 16) for i in (0, 2, 4))
+
+
+def _hash_for_filename(*parts: str) -> str:
+    hasher = hashlib.sha256()
+    for part in parts:
+        hasher.update(part.encode("utf-8", errors="ignore"))
+    return hasher.hexdigest()[:8]
+
+
+def _to_datetime(value):
+    if value is None:
+        return datetime.min
+    if hasattr(value, "to_datetime"):
+        try:
+            return value.to_datetime()
+        except TypeError:
+            pass
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        for fmt in ("%Y/%m/%d", "%Y-%m-%d", "%Y%m%d"):
+            try:
+                return datetime.strptime(value, fmt)
+            except ValueError:
+                continue
+    return datetime.min
+
+
+def _cleanup_old_cards(max_files: int = 40):  # 🟡 0929修改：限制圖卡輸出數量
+    try:
+        files = sorted(CAT_CARD_DIR.glob("catcard_*.png"), key=lambda p: p.stat().st_mtime, reverse=True)
+        for stale in files[max_files:]:
+            stale.unlink(missing_ok=True)
+    except Exception as exc:
+        logging.warning("Failed to cleanup old cat cards: %s", exc)
+
+
+def _normalize_health_data(report: dict):
+    """Collect warnings與重要指標，確保與舊版呈現一致。"""  # 🟡 0929修改：整理健檢資料給前端顯示
+    warnings = []
+    for key in ("health_warnings", "warnings", "alert_list", "warning_details"):
+        value = report.get(key)
+        if not value:
+            continue
+        if isinstance(value, list):
+            warnings.extend(str(item) for item in value if item)
+        elif isinstance(value, dict):
+            warnings.extend(str(item) for item in value.values() if item)
+        else:
+            warnings.append(str(value))
+    warnings = [w.strip() for w in warnings if w and isinstance(w, str)]
+
+    vitals_display = []
+    vitals = report.get("vital_stats") or report.get("vitals") or {}
+    if isinstance(vitals, dict):
+        vitals_iter = vitals.items()
+    elif isinstance(vitals, list):
+        vitals_iter = []
+        for item in vitals:
+            if isinstance(item, dict):
+                vitals_iter.extend(item.items())
+            else:
+                vitals_display.append((str(item), ""))
+    else:
+        vitals_iter = []
+
+    for key, value in vitals_iter:
+        if value is None or value == "":
+            continue
+        vitals_display.append((str(key), str(value)))
+
+    return warnings, vitals_display
+
+# 🟡 0929修改：九宮格貓咪分區
+def _score_to_interval(score) -> int | None:
+    """將數值分數換成 1~3 區間。"""  
+    if score is None:
+        return None
+    try:
+        value = float(score)
+    except (TypeError, ValueError):
+        return None
+    if value <= 0:
+        return None
+    if value <= 33:
+        return 1
+    if value <= 66:
+        return 2
+    return 3
+
+def _resolve_persona_key(health_score, mind_score) -> str | None:
+    """根據身心分數挑選對應的既有貓咪圖。"""  # 🟡 0929修改：依分數選擇貓咪類型
+    physical_zone = _score_to_interval(health_score)
+    mental_zone = _score_to_interval(mind_score)
+    if not physical_zone or not mental_zone:
+        return None
+    prefix = {1: "C", 2: "B", 3: "A"}.get(mental_zone)
+    if not prefix:
+        return None
+    return f"{prefix}{physical_zone}"
+
+
+def _validate_report_schema(payload: dict) -> dict:
+    """驗證 Gemini 報告 JSON 結構，避免後續操作失敗。"""  # 🟡 0929修改05：補上遺失的 schema 檢查 helper
+    if not isinstance(payload, dict):
+        raise TypeError("payload must be dict")
+
+    for key in ("summary", "keywords", "emotionVector"):
+        if key not in payload:
+            raise ValueError(f"Missing key: {key}")
+
+    if not isinstance(payload["summary"], str):
+        raise TypeError("summary must be string")
+
+    keywords = payload.get("keywords")
+    if not isinstance(keywords, list) or not all(isinstance(item, str) for item in keywords):
+        raise TypeError("keywords must be list[str]")
+
+    emotion_vector = payload.get("emotionVector")
+    if not isinstance(emotion_vector, dict):
+        raise TypeError("emotionVector must be object")
+
+    for key in ("valence", "arousal", "dominance"):
+        if key not in emotion_vector:
+            raise ValueError(f"emotionVector missing key: {key}")
+        if not isinstance(emotion_vector[key], (int, float)):
+            raise TypeError(f"emotionVector.{key} must be number")
+
+    return payload
+
+
+def fetch_cat_image(max_retries: int = 3, timeout: int = 12, max_bytes: int = 8_000_000):
+    """從 TheCatAPI 取得貓圖，失敗時改用備援圖庫。"""  # 🟡 0929修改：新增貓圖來源
+    api_url = "https://api.thecatapi.com/v1/images/search?size=med&mime_types=jpg,png"
+    headers = {}
+    api_key = os.getenv("CAT_API_KEY")
+    if api_key:
+        headers["x-api-key"] = api_key
+
+    backoff = 1
+    for attempt in range(max_retries):
+        try:
+            resp = requests.get(api_url, headers=headers, timeout=timeout)
+            if resp.status_code == 200:
+                payload = resp.json() or []
+                if not payload:
+                    raise ValueError("Cat API returned empty list")
+                img_url = payload[0].get("url")
+                if not img_url:
+                    raise ValueError("Cat API payload missing url")
+                image_bytes, final_url = _download_image(img_url, timeout, max_bytes)
+                if image_bytes:
+                    return image_bytes, final_url
+            elif resp.status_code in {429, 500, 502, 503, 504}:
+                logging.warning("Cat API temporary failure %s, backoff %ss", resp.status_code, backoff)
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 8)
+                continue
+            else:
+                raise ValueError(f"Cat API status {resp.status_code}: {resp.text[:200]}")
+        except Exception as exc:
+            logging.warning("Cat API request failed (attempt %s/%s): %s", attempt + 1, max_retries, exc)
+            time.sleep(backoff)
+            backoff = min(backoff * 2, 8)
+
+    logging.warning("Cat API all retries exhausted, switching to fallback image pool")
+    fallback_url = random.choice(CAT_FALLBACK_IMAGES)
+    image_bytes, final_url = _download_image(fallback_url, timeout, max_bytes, allow_fallback_errors=False)
+    if image_bytes:
+        return image_bytes, final_url
+    logging.error("Fallback gallery also failed, using placeholder")
+    placeholder = Image.new("RGB", (512, 512), "#fddde6")
+    return placeholder, None
+
+
+def _download_image(url: str, timeout: int, max_bytes: int, allow_fallback_errors: bool = True):
+    try:
+        resp = requests.get(url, timeout=timeout, stream=True)
+        if resp.status_code != 200:
+            raise ValueError(f"Image status {resp.status_code}")
+        content_type = resp.headers.get("Content-Type", "")
+        if "image" not in content_type:
+            raise ValueError(f"Unexpected content-type {content_type}")
+        content_length = int(resp.headers.get("Content-Length", "0"))
+        if content_length and content_length > max_bytes:
+            raise ValueError(f"Image too large: {content_length}")
+        data = resp.content
+        if len(data) > max_bytes:
+            raise ValueError("Image exceeds max_bytes")
+        kind = imghdr.what(None, data)
+        if kind not in {"jpeg", "png", "webp"}:
+            raise ValueError(f"Unsupported image type: {kind}")
+        return data, url
+    except Exception as exc:
+        if allow_fallback_errors:
+            logging.warning("Download image failed for %s: %s", url, exc)
+        else:
+            logging.error("Download fallback image failed for %s: %s", url, exc)
+        return None, None
+
+
+def generate_cat_card_text(report: dict, psychology: dict, preferred_style: str):
+    """呼叫 Gemini 產生貓卡敘述。"""  # 🟡 0929修改：貓卡文案
+    prompt = (
+        "你是一位數位貓咪圖卡設計師，會根據使用者的健康與心理測驗資料提供一隻陪伴貓咪。\n"
+        "回傳 JSON，欄位包含 styleKey (bright/steady/healer 其一)、persona、name、speech (15 字內)、"
+        "summary (60 字內)、insight (50 字內)、action (40 字內)、keywords (陣列，可空)。"
+        "所有文字使用繁體中文。\n"
+        f"建議風格：{preferred_style}\n"
+        f"健康資料：{json.dumps(report, ensure_ascii=False, default=str)}\n"
+        f"心理測驗：{json.dumps(psychology, ensure_ascii=False, default=str)}"
+    )
+
+    contents = _build_genai_contents(prompt, [])
+    try:
+        response = _generate_with_retry(contents, generation_config=JSON_RESPONSE_CONFIG)
+        if not response or not getattr(response, "candidates", None):
+            return None
+        candidate = response.candidates[0]
+        text = ""
+        parts = getattr(candidate.content, "parts", None) or []  # 0929修改03：parts 可能為 None，改採空清單避免迴圈錯誤
+        for part in parts:
+            if getattr(part, "text", None):
+                text += part.text
+        try:
+            parsed = extract_json_from_response(text)
+        except Exception:
+            logging.exception("0929修改03：Cat card JSON parse failed; raw snippet=%r", text[:500])
+            parsed = None
+        if isinstance(parsed, dict):
+            return parsed
+        logging.warning("Cat card text fallback due to unparsable response")
+    except Exception as exc:
+        logging.error(f"generate_cat_card_text failed: {exc}")
+    return None
+
+
+CAT_STYLES = {
+    "bright": {
+        "title": "陽光守護者",
+        "names": ["小橘光", "暖暖", "Sunny 喵"],
+        "speech": ["今天也要補充水分喵！", "保持笑容，活力滿分！"],
+        "description": "我感受到你{mood}的能量，讓我們一起維持 {health} 分的好狀態。",
+        "actions": [
+            "午休時間散步 10 分鐘，讓身體熱起來",
+            "今天晚餐試試多彩蔬菜盤，補充維生素",
+        ],
+        "palette": ("#FFEAA7", "#FD79A8", "#FFAFCC", "#2d3436"),
+    },
+    "steady": {
+        "title": "溫柔照護隊長",
+        "names": ["小霧", "Cotton", "霜霜"],
+        "speech": ["放慢腳步，我陪著你喵。", "今天也記得深呼吸三次。"],
+        "description": "你的關鍵字是 {mood}，我會在日常提醒你保持節奏，讓 {health} 分更穩定。",
+        "actions": [
+            "睡前做 5 分鐘伸展，放鬆肌肉",
+            "把今天的情緒寫在手帳，整理一下心緒",
+        ],
+        "palette": ("#E0FBFC", "#98C1D9", "#3D5A80", "#2d3436"),
+    },
+    "healer": {
+        "title": "療癒訓練師",
+        "names": ["小湯圓", "Mochi", "露露"],
+        "speech": ["我們慢慢來，沒關係的喵。", "先照顧好自己，我在旁邊。"],
+        "description": "看見你需要休息的訊號，我會當你的提醒小鬧鐘，陪你把 {health} 分調整回來。",
+        "actions": [
+            "安排 15 分鐘的呼吸練習，舒緩壓力",
+            "今天對自己說聲辛苦了，給自己一個擁抱",
+        ],
+        "palette": ("#E8EAF6", "#C5CAE9", "#9FA8DA", "#2d3436"),
+    },
+}
+
+
+def build_cat_card(report: dict, psychology: dict):
+    """根據健康與心理測驗資料建立貓卡內容。"""  # 🟡 0929修改：組裝貓卡資料
+    health_score = report.get("health_score")
+    mood_score = (
+        psychology.get("combined_score")
+        or psychology.get("combinedScore")
+        or psychology.get("mind_score")
+    )
+    keywords = psychology.get("keywords") or []
+
+    health_value = float(health_score) if health_score is not None else 72.0
+    mood_value = float(mood_score) if mood_score is not None else 68.0
+
+    if health_value >= 80 or mood_value >= 80:
+        suggested_style = "bright"
+    elif health_value < 60:
+        suggested_style = "healer"
+    else:
+        suggested_style = "steady"
+
+    ai_payload = generate_cat_card_text(report, psychology, suggested_style)
+    style_key = ai_payload.get("styleKey") if ai_payload and ai_payload.get("styleKey") in CAT_STYLES else suggested_style
+    style = CAT_STYLES[style_key]
+
+    # Finalize fields with AI payload or defaults
+    # 🟡 0929修改：先試圖抓對應圖檔，失敗再退回 TheCatAPI
+    name = (ai_payload or {}).get("name") or random.choice(style["names"])
+    persona_key = _resolve_persona_key(health_value, mood_value)
+    persona_label = CAT_PERSONA_METADATA.get(persona_key)
+    persona = (ai_payload or {}).get("persona") or persona_label or style["title"]
+    speech = (ai_payload or {}).get("speech") or random.choice(style["speech"])
+
+    model_keywords = (ai_payload or {}).get("keywords") or keywords
+    if isinstance(model_keywords, str):
+        model_keywords = [k.strip() for k in model_keywords.split(",") if k.strip()]
+    mood_label = "、".join(model_keywords[:3]) if model_keywords else "平衡"
+
+    description = (ai_payload or {}).get("summary") or style["description"].format(
+        mood=mood_label,
+        health=int(round(health_value)),
+    )
+    insight = (ai_payload or {}).get("insight") or psychology.get("summary") or f"當下情緒偏向 {mood_label}，記得照顧自己。"
+    action = (ai_payload or {}).get("action") or random.choice(style["actions"])
+
+    vitality = max(0, min(100, int(round(health_value))))
+    companionship = max(0, min(100, int(round(mood_value))))
+    stability = max(0, min(100, int((vitality + companionship) / 2 + random.randint(-4, 4))))
+
+    return {
+        "persona": persona,
+        "name": name,
+        "speech": speech,
+        "description": description,
+        "insight": insight,
+        "action": action,
+        "stats": [
+            {"label": "活力指數", "value": f"{vitality}%"},
+            {"label": "陪伴力", "value": f"{companionship}%"},
+            {"label": "穩定度", "value": f"{stability}%"},
+        ],
+        "style_key": style_key,
+        "palette": style.get("palette"),
+        "keywords_list": model_keywords,
+        "persona_key": persona_key,
+        "persona_label": persona_label,
+    }
+
+
+def circle_crop_image(image_bytes, diameter: int = 260) -> Image.Image:
+    if isinstance(image_bytes, Image.Image):
+        img = image_bytes
+    else:
+        img = Image.open(BytesIO(image_bytes))
+    img = ImageOps.exif_transpose(img).convert("RGBA")
+    min_side = min(img.size)
+    left = (img.width - min_side) // 2
+    top = (img.height - min_side) // 2
+    img = img.crop((left, top, left + min_side, top + min_side))
+    img = img.resize((diameter, diameter), Image.LANCZOS)
+
+    mask = Image.new("L", (diameter, diameter), 0)
+    draw = ImageDraw.Draw(mask)
+    draw.ellipse((0, 0, diameter, diameter), fill=255)
+    mask = mask.filter(ImageFilter.GaussianBlur(0.6))
+
+    output = Image.new("RGBA", (diameter, diameter))
+    output.paste(img, (0, 0), mask)
+    return output
+
+    # 🟡 0929修改：繪製圖卡(先試圖抓對應圖檔，失敗再退回 TheCatAPI)
+def render_cat_card_image(card: dict, user_id: str, cache_key: str | None = None):
+    """生成圖卡 PNG，並回傳檔名與來源 URL。"""  # 🟡 0929修改：圖卡繪製
+    timeout = 12
+    max_bytes = 8_000_000
+    image_bytes = None
+    source_url = None
+
+    persona_key = card.get("persona_key")
+    if persona_key:
+        candidate_url = CAT_PERSONA_IMAGES.get(persona_key)
+        if candidate_url:
+            image_bytes, source_url = _download_image(candidate_url, timeout, max_bytes)
+            if not image_bytes:
+                logging.warning("Persona image download failed for %s", persona_key)
+
+    if not image_bytes:
+        image_bytes, source_url = fetch_cat_image(timeout=timeout, max_bytes=max_bytes)
+
+    cat_image = circle_crop_image(image_bytes)
+
+    width, height = 900, 600
+    palette = card.get("palette", ("#FFEAA7", "#FD79A8", "#FFAFCC", "#2d3436"))
+    bg_start, bg_end, accent, text_color = palette
+
+    base = Image.new("RGB", (width, height), bg_start)
+    draw = ImageDraw.Draw(base)
+
+    start_rgb = _hex_to_rgb(bg_start)
+    end_rgb = _hex_to_rgb(bg_end)
+    for y in range(height):
+        ratio = y / max(height - 1, 1)
+        r = int(start_rgb[0] * (1 - ratio) + end_rgb[0] * ratio)
+        g = int(start_rgb[1] * (1 - ratio) + end_rgb[1] * ratio)
+        b = int(start_rgb[2] * (1 - ratio) + end_rgb[2] * ratio)
+        draw.line([(0, y), (width, y)], fill=(r, g, b))
+
+    draw.rounded_rectangle((40, 40, width - 40, height - 40), radius=35, fill="white")
+
+    title_font = _load_font(44)
+    name_font = _load_font(56)
+    body_font = _load_font(28)
+    small_font = _load_font(24)
+    caption_font = _load_font(22)
+
+    x_margin = 80
+    y = 90
+    draw.text((x_margin, y), card.get("persona", "療癒系貓咪"), font=title_font, fill=accent)
+    y += 70
+    draw.text((x_margin, y), card.get("name", "專屬貓咪"), font=name_font, fill=text_color)
+    y += 80
+
+    speech_text = _wrap_text(card.get("speech"), 14)
+    draw.text((x_margin, y), speech_text, font=body_font, fill=text_color)
+    y += 110
+
+    summary_text = _wrap_text(card.get("description"), 18)
+    draw.text((x_margin, y), summary_text, font=body_font, fill=text_color)
+    y += 120
+
+    insight_text = _wrap_text(card.get("insight"), 20)
+    if insight_text:
+        draw.text((x_margin, y), f"心情結論：\n{insight_text}", font=small_font, fill=text_color)
+        y += 120
+
+    for stat in card.get("stats", []):
+        draw.text((x_margin, y), f"{stat.get('label')}: {stat.get('value')}", font=small_font, fill=text_color)
+        y += 40
+
+    action_text = _wrap_text(card.get("action"), 18)
+    if action_text:
+        draw.text((x_margin, y), f"建議行動：{action_text}", font=small_font, fill=text_color)
+
+    circle_x = width - 320
+    circle_y = 120
+    highlight_box = (circle_x - 20, circle_y - 20, circle_x + cat_image.width + 20, circle_y + cat_image.height + 20)
+    draw.ellipse(highlight_box, fill="#fdf6ff")
+    base.paste(cat_image, (circle_x, circle_y), cat_image)
+
+    filename = f"catcard_{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{_hash_for_filename(user_id, str(time.time()), cache_key or '')}.png"
+    output_path = CAT_CARD_DIR / filename
+    base.save(output_path, format="PNG")
+    _cleanup_old_cards()
+
+    return filename, _safe_url(source_url)
+
 # 載入 .env 檔案
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "your-secret-key")  # 從 .env 載入或使用預設值
 logging.basicConfig(level=logging.DEBUG)
+
+# 🟡 0929修改：設定圖卡輸出位置與備援資料
+BASE_DIR = Path(__file__).resolve().parent
+CAT_CARD_DIR = BASE_DIR / "static" / "cat_cards"
+CAT_CARD_DIR.mkdir(parents=True, exist_ok=True)
+
+CAT_FALLBACK_IMAGES = [
+    "https://images.unsplash.com/photo-1518791841217-8f162f1e1131?auto=format&fit=crop&w=1000&q=80",
+    "https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&w=1000&q=80",
+    "https://images.unsplash.com/photo-1504208434309-cb69f4fe52b0?auto=format&fit=crop&w=1000&q=80",
+    "https://images.unsplash.com/photo-1583083527882-4bee9aba2eea?auto=format&fit=crop&w=1000&q=80",
+]
+
+# 0929修改04：統一設定模型回傳純 JSON
+JSON_RESPONSE_CONFIG = genai_types.GenerateContentConfig(
+    response_mime_type="application/json",
+    candidate_count=1,
+    temperature=0.6,
+)
+
+# 🟡 0929修改：貓咪九宮格對應既有圖庫
+CAT_PERSONA_IMAGES = {
+    "A1": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FA1.png?alt=media&token=58d97409-e570-444c-8ed7-e647b1ec182b",
+    "A2": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FA2.png?alt=media&token=3f2095f2-80d7-48a9-97e5-5b42afc4cabc",
+    "A3": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FA3.png?alt=media&token=beaa5879-4ff1-41d2-b4d6-e35748f0f6b5",
+    "B1": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FB1.png?alt=media&token=6083faac-6e23-45c2-b8d6-bac3e7a95b3b",
+    "B2": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FB2.png?alt=media&token=807c6e80-c75e-4ded-bb63-3792fcb6cff4",
+    "B3": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FB3.png?alt=media&token=d39495b1-67ef-4b6d-8fd3-8b193ee434aa",
+    "C1": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FC1.png?alt=media&token=146a237e-4d49-4dd2-bafc-2d2b84347d0d",
+    "C2": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FC2.png?alt=media&token=1ba9e8ec-6de0-4579-8a32-d0b7fff6bf3a",
+    "C3": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FC3.png?alt=media&token=22d41015-dae2-4c19-a753-b9a4b4957843",
+}
+
+CAT_PERSONA_METADATA = {
+    "A1": "布偶貓（暖心貓）",
+    "A2": "橘貓（晴天貓）",
+    "A3": "俄羅斯藍貓（活力貓）",
+    "B1": "波斯貓（小病貓）",
+    "B2": "三花貓（日常貓）",
+    "B3": "英國短毛銀漸層（外強內柔貓）",
+    "C1": "摺耳貓（疲憊貓）",
+    "C2": "黑貓（悶悶貓）",
+    "C3": "暹羅貓（壓力貓）",
+}
+
+FONT_CANDIDATES = [
+    "/System/Library/Fonts/PingFang.ttc",
+    "/System/Library/Fonts/Hiragino Sans GB W3.ttc",
+    "/Library/Fonts/NotoSansCJK-Regular.ttc",
+    "/Library/Fonts/Arial Unicode.ttf",
+    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+]
 
 # 初始化 Firebase
 try:
@@ -548,7 +1078,7 @@ def chat_api():
             return jsonify({"error": "conversationHistory 為空或格式無效"}), 400
 
         try:
-            response = _generate_with_retry(contents)
+            response = _generate_with_retry(contents, generation_config=JSON_RESPONSE_CONFIG)
         except Exception as e:
             logging.error(f"Gemini generation failed: {e}")
             return jsonify({"nextPrompt": "AI 助手暫時無法回應，請稍後再試。"}), 200
@@ -559,7 +1089,8 @@ def chat_api():
 
         candidate = response.candidates[0]
         reply = ""
-        for part in getattr(candidate.content, "parts", []):
+        parts = getattr(candidate.content, "parts", None) or []  # 0929修改03：parts 可能為 None，改採空清單避免迴圈錯誤
+        for part in parts:
             if getattr(part, "text", None):
                 reply += part.text
 
@@ -569,19 +1100,20 @@ def chat_api():
 
         logging.debug(f"Raw reply: {reply}")
 
-        # 嘗試解析 JSON 回應
-        parsed_json = extract_json_from_response(reply)
-        if parsed_json and isinstance(parsed_json, dict):
+        try:
+            parsed_json = extract_json_from_response(reply)
             logging.debug(f"Successfully parsed JSON: {parsed_json}")
-            # 若模型已依格式提供完整 JSON，就直接回傳
+        except Exception:
+            logging.exception("0929修改03：chat_api JSON parse failed; raw snippet=%r", reply[:500])
+            parsed_json = None
+
+        if parsed_json and isinstance(parsed_json, dict):
             if "nextPrompt" in parsed_json or "summary" in parsed_json:
                 return jsonify(parsed_json)
-            # 否則嘗試退回純文字內容
             return jsonify({"nextPrompt": reply})
-        else:
-            # 如果無法解析 JSON，則返回原文字作為 nextPrompt
-            logging.warning(f"Could not parse JSON from reply, returning as plain text: {reply}")
-            return jsonify({"nextPrompt": reply})
+
+        logging.warning(f"Could not parse JSON from reply, returning as plain text: {reply}")
+        return jsonify({"nextPrompt": reply})
     
     except Exception as e:
         logging.error(f"Unexpected error in chat_api: {str(e)}, data: {data}")
@@ -609,7 +1141,7 @@ def report_api():
             return jsonify({"error": "conversationHistory 為空或格式無效"}), 400
 
         try:
-            response = _generate_with_retry(contents)
+            response = _generate_with_retry(contents, generation_config=JSON_RESPONSE_CONFIG)
         except Exception as e:
             logging.error(f"Gemini report generation failed: {e}")
             return jsonify({"summary": "模型沒有產生報告內容，請稍後再試。", "keywords": [], "emotionVector": {"valence": 50, "arousal": 50, "dominance": 50}}), 200
@@ -625,7 +1157,8 @@ def report_api():
 
         candidate = response.candidates[0]
         summary_text = ""
-        for part in getattr(candidate.content, "parts", []):
+        parts = getattr(candidate.content, "parts", None) or []  # 0929修改03：parts 可能為 None，改採空清單避免迴圈錯誤
+        for part in parts:
             if getattr(part, "text", None):
                 summary_text += part.text
 
@@ -640,20 +1173,23 @@ def report_api():
 
         logging.debug(f"Raw report summary: {summary_text}")
 
-        # 嘗試解析回應為 JSON（維持原邏輯）
-        parsed_json = extract_json_from_response(summary_text)
-        if parsed_json and isinstance(parsed_json, dict):
+        try:
+            parsed_json = extract_json_from_response(summary_text)
+            parsed_json = _validate_report_schema(parsed_json)
             logging.debug(f"Successfully parsed report JSON: {parsed_json}")
             return jsonify(parsed_json)
-        else:
-            # 如果不是 JSON，返回純文字總結
-            logging.warning(f"Could not parse report JSON, returning as plain text: {summary_text}")
-            report_json = {
-                "summary": summary_text,
-                "keywords": [],
-                "emotionVector": {"valence": 50, "arousal": 50, "dominance": 50}
-            }
-            return jsonify(report_json)
+        except Exception as exc:
+            logging.exception("0929修改03：report_api JSON/schema failed: %s", exc)
+            return (
+                jsonify(
+                    {
+                        "error": "LLM returned invalid JSON",
+                        "detail": str(exc),
+                        "raw": summary_text[:500],
+                    }
+                ),
+                502,
+            )
     
     except Exception as e:
         logging.error(f"Unexpected error in report_api: {str(e)}, data: {data}")
@@ -703,32 +1239,89 @@ def generate_card():
     try:
         user_id = session["user_id"]
         # 🟢 修改：同樣改為查詢頂層 health_reports
-        health_reports = (
+        health_report_docs = (
             db.collection("health_reports")
-              .where("user_uid", "==", user_id)
-              .stream()
-        )  # 🟢 修改：原本是 users/{uid}/health_reports
-        reports = [report.to_dict() for report in health_reports]
+            .where("user_uid", "==", user_id)
+            .stream()
+        )
+        reports = []
+        for doc in health_report_docs:
+            data = doc.to_dict() or {}
+            data["id"] = doc.id
+            reports.append(data)
         logging.debug(f"Generate card - reports found: {len(reports)}")
         if not reports:
             flash("請先上傳健康報告！", "error")
             return redirect(url_for("upload_health"))
 
-        psych_tests = (
+        psych_docs = (
             db.collection("users")
             .document(user_id)
             .collection("psychology_tests")
             .stream()
         )
-        tests = [test.to_dict() for test in psych_tests]
+        tests = []
+        for doc in psych_docs:
+            data = doc.to_dict() or {}
+            data["id"] = doc.id
+            tests.append(data)
         if not tests:
-            flash("請先完成心理測驗！」", "error")
+            flash("請先完成心理測驗！", "error")  # 🟡 0929修改：修正提示字串
             return redirect(url_for("psychology_test"))
 
-        card_url = "https://images.unsplash.com/photo-1526336024174-e58f5cdd8e13?crop=entropy&cs=tinysrgb&fit=max&fm=jpg"
+        latest_report = max(
+            reports,
+            key=lambda r: _to_datetime(r.get("created_at") or r.get("report_date")),
+        )
+        warnings, vitals_display = _normalize_health_data(latest_report)  # 🟡 0929修改：整理健檢提醒與指標
+        latest_report["_display_warnings"] = warnings
+        latest_report["_display_vitals"] = vitals_display
+
+        latest_test = max(
+            tests,
+            key=lambda t: _to_datetime(t.get("submit_time") or t.get("created_at")),
+        )
+
+        use_cache = request.args.get("nocache") != "1"
+        cache_entry = session.get("cat_card_cache") if use_cache else None
+        card_payload = None
+        image_filename = None
+        cat_source = None
+
+        if cache_entry:
+            cache_path = CAT_CARD_DIR / cache_entry.get("filename", "")
+            cache_age = time.time() - cache_entry.get("timestamp", 0)
+            if cache_path.exists() and cache_age < 3600:
+                logging.debug("Using cached cat card for user %s", user_id)
+                card_payload = cache_entry.get("card", {})
+                image_filename = cache_entry.get("filename")
+                cat_source = _safe_url(cache_entry.get("cat_source"))
+
+        if not card_payload or not image_filename:
+            card_payload = build_cat_card(latest_report, latest_test)
+            if warnings:
+                card_payload["warnings"] = warnings
+            cache_key = f"{latest_report.get('id')}_{latest_test.get('id')}"
+            image_filename, cat_source = render_cat_card_image(card_payload, user_id, cache_key=cache_key)
+            session["cat_card_cache"] = {
+                "timestamp": time.time(),
+                "filename": image_filename,
+                "cat_source": cat_source,
+                "card": card_payload,
+            }
+
+        card_image_url = url_for("static", filename=f"cat_cards/{image_filename}")
+        card_payload["image_url"] = card_image_url
+        card_payload["cat_image_source"] = cat_source
+        card_payload.setdefault("warnings", warnings)
 
         return render_template(
-            "generate_card.html", card_image_url=card_url, is_logged_in=True
+            "generate_card.html",
+            card=card_payload,
+            card_image_url=card_image_url,
+            report=latest_report,
+            psychology=latest_test,
+            is_logged_in=True,
         )
     except Exception as e:
         logging.error(f"Generate card error: {str(e)}")

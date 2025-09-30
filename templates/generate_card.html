@@ -459,6 +459,9 @@
     <meta name="apple-mobile-web-app-title" content="Meow Yourself" />
 </head>
 <body>
+    {% set c = card or {} %}
+    {% set default_image = 'https://images.unsplash.com/photo-1526336024174-e58f5cdd8e13?crop=entropy&cs=tinysrgb&fit=max&fm=jpg' %}
+    {% set card_url = c.get('cat_image_source') or card_image_url or c.get('image_url') or default_image %} <!-- 🟡 0929修改：優先使用資料庫圖卡來源 -->
     <div class="container">
         <header class="header">
             <div class="logo">
@@ -490,44 +493,112 @@
             <div class="cat-card" id="cat-card">
                 <div class="cat-card-header">
                     <div class="brand-logo">MEOW Yourself</div>
-                    <div class="cat-type-badge">療癒系貓咪</div>
+                    <div class="cat-type-badge">{{ c.persona or c.persona_label or '療癒系貓咪' }}</div> <!-- 0929修改：依照 AI 或九宮格顯示貓咪稱號 -->
                 </div>
                 
                 <div class="cat-image-section">
-                    <div class="cat-speech-bubble">你的健康是我的關注！</div>
-                    <img src="https://images.unsplash.com/photo-1526336024174-e58f5cdd8e13?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3MzkyNDZ8MHwxfHNlYXJjaHwxfHxjYXQlMjBwcm9maWxlfGVufDB8fHx8MTc1ODI4MjA2MXww&ixlib=rb-4.1.0&q=80&w=1080" alt="Your Cat" class="cat-image" />
+                    <div class="cat-speech-bubble">{{ c.speech or '你的健康是我的關注！' }}</div>
+                    <img src="{{ card_url }}" alt="Your Cat" class="cat-image" />
                 </div>
                 
-                <div class="cat-name">小橘</div>
+                <div class="cat-name">{{ c.name or '專屬貓咪' }}</div>
                 <div class="cat-description">
-                    我是根據你的健康狀況誕生的貓咪！我會陪伴你一起關注健康，提醒你保持良好的生活習慣。
+                    {{ c.description or '我是根據你的健康狀況誕生的貓咪！我會陪伴你一起關注健康，提醒你保持良好的生活習慣。' }}
+                    {% if c.insight %}
+                        <div style="margin-top:8px;"><strong>心情結論：</strong>{{ c.insight }}</div>
+                    {% endif %}
+                    {% if c.action %}
+                        <div style="margin-top:4px;"><strong>建議行動：</strong>{{ c.action }}</div>
+                    {% endif %}
                 </div>
                 
                 <div class="health-status">
-                    <div class="status-item">
-                        <div class="status-label">活力指數</div>
-                        <div class="status-value">85%</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-label">關懷度</div>
-                        <div class="status-value">90%</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-label">陪伴力</div>
-                        <div class="status-value">95%</div>
-                    </div>
+                    {% if c.stats %}
+                        {% for stat in c.stats %}
+                            <div class="status-item">
+                                <div class="status-label">{{ stat.label }}</div>
+                                <div class="status-value">{{ stat.value }}</div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="status-item">
+                            <div class="status-label">活力指數</div>
+                            <div class="status-value">85%</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">關懷度</div>
+                            <div class="status-value">90%</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">陪伴力</div>
+                            <div class="status-value">95%</div>
+                        </div>
+                    {% endif %}
                 </div>
                 
                 <div class="ai-signature">🤖 AI 生成專屬健康伙伴</div>
             </div>
+            {% if c.cat_image_source %}
+            <p style="font-size: 12px; color: rgba(255,255,255,0.75); margin-top: -12px;">
+                圖片來源：<a href="{{ c.cat_image_source }}" target="_blank" rel="noopener noreferrer nofollow" style="color:#ffeaa7;">{{ c.cat_image_source }}</a>
+            </p>
+            {% endif %}
             
-            <!-- 🟢 修改開始：生成頁免責聲明 -->
+            {% if report %}
+            <div class="info-card">
+                <h3>健康提醒</h3>
+                <ul>
+                    {% set warning_list = report.get('_display_warnings') or report.get('health_warnings') %}
+                    {% if warning_list %}
+                        {% for warn in warning_list %}
+                            <li>{{ warn }}</li>
+                        {% endfor %}
+                    {% else %}
+                        <li>目前無特別提醒，但仍請持續追蹤自己的健康狀況。</li>
+                    {% endif %}
+                </ul>
+            </div>
+
+            <div class="info-card">
+                <h3>最新健檢摘要</h3>
+                <p><span class="info-label">健康分數：</span>{{ report.get('health_score') if report.get('health_score') is not none else '尚未評估' }}</p>
+                {% if report.get('report_date') %}
+                <p><span class="info-label">報告日期：</span>{{ report.get('report_date') }}</p>
+                {% endif %}
+                {% set vitals = report.get('_display_vitals') or [] %}
+                {% if vitals %}
+                <p><span class="info-label">重要指標：</span></p>
+                <ul>
+                    {% for key, value in vitals %}
+                        <li>{{ key }}：{{ value }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p><span class="info-label">重要指標：</span>暫無可顯示指標。</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if psychology %}
+            <div class="info-card">
+                <h3>情緒測驗摘要</h3>
+                {% set combined = psychology.get('combined_score') if psychology.get('combined_score') is not none else psychology.get('combinedScore') %}
+                <p><span class="info-label">綜合分數：</span>{{ combined if combined is not none else '尚未評估' }}</p>
+                {% if psychology.get('summary') %}
+                <p><span class="info-label">摘要：</span>{{ psychology.get('summary') }}</p>
+                {% endif %}
+                {% if psychology.get('keywords') %}
+                <p><span class="info-label">關鍵字：</span>{{ psychology.get('keywords') | join('、') }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- 🟡 0929修改：生成頁免責聲明 -->
             <div class="disclaimer-block" style="margin: 24px 0;">
                 <div style="background: #fde68a; border: 1px solid #fcd34d; color: #92400e; border-radius: 20px; padding: 16px 24px; text-align: center; font-size: 14px; line-height: 1.6;">
                     <strong>【特別提醒】</strong> 本測驗僅為娛樂與參考，並非醫療建議。若有任何身心困擾，請尋求專業協助。
                 </div>
             </div>
-            <!-- 🟢 修改結束 -->
             
             <!-- 分享區域 -->
             <div class="share-section">
@@ -572,6 +643,9 @@
     </div>
 
     <script>
+        const catName = {{ (c.name or "專屬貓咪") | tojson }};
+        const shareMessage = {{ ("我在 Meow Yourself 遇見了 " ~ (c.name or "專屬貓咪") ~ "，提醒自己：" ~ (c.action or "持續照顧身心。")) | tojson }};
+
         // 顯示通知
         function showNotification(message, type = 'success') {
             const notification = document.createElement('div');
@@ -589,22 +663,20 @@
         
         // 分享功能
         function shareToLine() {
-            const text = '我在 Meow Yourself 獲得了專屬的健康貓咪夥伴！快來看看我的貓咪～';
             const url = window.location.href;
-            const lineUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+            const lineUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}&text=${encodeURIComponent(shareMessage)}`;
             window.open(lineUrl, '_blank');
         }
         
         function shareToFacebook() {
             const url = window.location.href;
-            const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+            const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(shareMessage)}`;
             window.open(facebookUrl, '_blank', 'width=600,height=400');
         }
         
         function shareToTwitter() {
-            const text = '我在 Meow Yourself 獲得了專屬的健康貓咪夥伴！🐱 #MeowYourself #健康貓咪';
             const url = window.location.href;
-            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}&url=${encodeURIComponent(url)}`;
             window.open(twitterUrl, '_blank', 'width=600,height=400');
         }
         
@@ -670,10 +742,10 @@
         function downloadCard() {
             const btn = event.target.closest('.btn-secondary');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<span class="material-symbols-outlined">check</span>功能開發中';
+            btn.innerHTML = `<span class="material-symbols-outlined">check</span>${catName} 正在準備`;
             btn.style.background = '#f59e0b';
             
-            showNotification('下載功能正在開發中...', 'error');
+            showNotification(`${catName} 的下載功能正在開發中...`, 'error');
             
             setTimeout(() => {
                 btn.innerHTML = originalText;
