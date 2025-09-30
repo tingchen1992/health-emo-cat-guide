@@ -3,6 +3,7 @@ __pycache__/
 *.py[codz]
 *$py.class
 old_app.py
+static/cat_cards
 
 # C extensions
 *.so
