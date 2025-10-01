@@ -127,7 +127,7 @@
                 <button onclick="selectMode('quick-qa')" class="group bg-[var(--bg-secondary)] p-8 rounded-2xl custom-shadow-lg hover:shadow-2xl hover:-translate-y-1.5 transition-all text-left flex items-center gap-6">
                     <div class="bg-amber-100 p-4 rounded-full"><svg class="w-10 h-10 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5,14h-0.79l-0.28-0.27c1.2-1.4,1.82-3.31,1.48-5.34c-0.47-2.78-2.79-5-5.59-5.34c-4.23-0.52-7.79,3.04-7.27,7.27 c0.34,2.8,2.56,5.12,5.34,5.59c2.03,0.34,3.94-0.28,5.34-1.48L14,14.47V15.5l5,5l1.5-1.5L15.5,14z M9.5,14C7.01,14,5,11.99,5,9.5 C5,7.01,7.01,5,9.5,5S14,7.01,14,9.5C14,11.99,11.99,14,9.5,14z"/></svg></div>
                     <div class="flex-1">
-                        <h2 class="text-2xl font-bold">快問快答</h2>
+                        <h2 class="text-2xl font-bold">焦點訪談</h2>
                         <p class="text-[var(--text-secondary)] text-sm max-h-0 opacity-0 group-hover:max-h-40 group-hover:opacity-100 overflow-hidden transition-all duration-300 mt-1">由專業的「喵記者」引導，快速釐清當下的心情與狀況。</p>
                     </div>
                 </button>
@@ -285,7 +285,7 @@
             appState.mode = mode;
             resetState();
             
-            dashboardTitle.textContent = mode === 'deep-chat' ? '與 喵奶奶 深度聊聊' : '與 喵記者 快問快答';
+            dashboardTitle.textContent = mode === 'deep-chat' ? '與 喵奶奶 深度聊聊' : '與 喵記者 焦點訪談';
             
             selectionView.classList.add('opacity-0', 'scale-95');
             setTimeout(() => {
@@ -515,26 +515,91 @@
             try {
                 const reportData = await callReportAPI();
                 
-                if(!reportData.emotionVector) {
-                    throw new Error("Invalid report structure received.");
+                if (!reportData.emotionVector || 
+                    typeof reportData.emotionVector.valence !== 'number' || 
+                    typeof reportData.emotionVector.arousal !== 'number' || 
+                    typeof reportData.emotionVector.dominance !== 'number') {
+                    throw new Error("Invalid emotionVector structure received.");
                 }
 
-                const mindScore = Math.round(
-                    (reportData.emotionVector.valence * 0.6) + 
-                    (reportData.emotionVector.dominance * 0.3) + 
-                    ((100 - Math.abs(reportData.emotionVector.arousal - 50)) * 0.1)
-                );
-                const summaryText = getSummaryPlainText(reportData.summary);
+                // Frontend: Detect extreme/aggressive language in user messages
+                const extremeKeywords = ['恨死', '毀滅', '絕望', '暴力', '殺', '死', '痛恨', '崩潰', '瘋了'];
+                let extremeCount = 0;
+                const matchedKeywords = new Set();
+                appState.conversationHistory
+                    .filter(msg => msg.role === 'user')
+                    .forEach(msg => {
+                        const text = msg.parts[0].text.toLowerCase();
+                        extremeKeywords.forEach(keyword => {
+                            if (text.includes(keyword)) {
+                                extremeCount++;
+                                matchedKeywords.add(keyword);
+                            }
+                        });
+                    });
 
-                const bodyScore = Math.floor(Math.random() * (95 - 75 + 1)) + 75; // Placeholder
+                // Adjust emotionVector if extreme language detected
+                let emotionVector = {
+                    valence: reportData.emotionVector.valence,
+                    arousal: reportData.emotionVector.arousal,
+                    dominance: reportData.emotionVector.dominance
+                };
+                const deductAmount = extremeCount > 0 ? Math.min(30, extremeCount * 10) : 0;
+                if (extremeCount > 0) {
+                    emotionVector.valence -= deductAmount;
+                    emotionVector.arousal += deductAmount;
+                    emotionVector.dominance -= deductAmount;
+                }
+
+                // Validate and clamp to 1-100
+                emotionVector = {
+                    valence: Math.max(1, Math.min(100, Math.round(emotionVector.valence))),
+                    arousal: Math.max(1, Math.min(100, Math.round(emotionVector.arousal))),
+                    dominance: Math.max(1, Math.min(100, Math.round(emotionVector.dominance)))
+                };
+
+                const mindScore = Math.round(
+                    (emotionVector.valence * 0.6) + 
+                    (emotionVector.dominance * 0.3) + 
+                    ((100 - Math.abs(emotionVector.arousal - 50)) * 0.1)
+                );
+
+                // Calculate bodyScore based on healthReportData
+                let bodyScore;
+                if (healthReportData && typeof healthReportData.health_score === 'number' && healthReportData.health_score >= 0 && healthReportData.health_score <= 100) {
+                    bodyScore = healthReportData.health_score;
+                } else {
+                    const warnings = Array.isArray(healthReportData?.health_warnings) ? healthReportData.health_warnings.filter(Boolean) : [];
+                    bodyScore = warnings.length > 0 ? Math.round(80 - (warnings.length * 5)) : 85;
+                }
+
                 const combinedScore = Math.round((mindScore + bodyScore) / 2);
 
+                // Log scores to frontend console (for debugging)
+                console.log('Generated Scores:', {
+                    mindScore: Math.max(0, Math.min(100, mindScore)),
+                    bodyScore: Math.max(0, Math.min(100, bodyScore)),
+                    combinedScore: Math.max(0, Math.min(100, combinedScore)),
+                    emotionVector: emotionVector,
+                    extremeLanguage: {
+                        detected: extremeCount > 0,
+                        matchedKeywords: Array.from(matchedKeywords),
+                        deductAmount: deductAmount
+                    }
+                });
+
                 const finalReportData = {
-                  ...reportData,
-                  summary: summaryText,
-                  mindScore: Math.max(0, Math.min(100, mindScore)),
-                  bodyScore: bodyScore,
-                  combinedScore: Math.max(0, Math.min(100, combinedScore)),
+                    ...reportData,
+                    emotionVector,
+                    summary: getSummaryPlainText(reportData.summary),
+                    mindScore: Math.max(0, Math.min(100, mindScore)),
+                    bodyScore: Math.max(0, Math.min(100, bodyScore)),
+                    combinedScore: Math.max(0, Math.min(100, combinedScore)),
+                    extremeLanguage: {
+                        detected: extremeCount > 0,
+                        matchedKeywords: Array.from(matchedKeywords),
+                        deductAmount: deductAmount
+                    }
                 };
 
                 // Save scores to backend
@@ -552,7 +617,8 @@
                             summary: finalReportData.summary,
                             keywords: finalReportData.keywords,
                             emotionVector: finalReportData.emotionVector,
-                            conversationHistory: appState.conversationHistory
+                            conversationHistory: appState.conversationHistory,
+                            extremeLanguage: finalReportData.extremeLanguage
                         })
                     });
 
@@ -569,12 +635,11 @@
             } catch (error) {
                 console.error("Report Generation Error:", error);
                 addMessage('gemini', "糟糕，整理的時候不小心把墨水打翻了，請稍後再試一次。");
-                appState.isReportGenerated = false; // Allow retry
+                appState.isReportGenerated = false;
             } finally {
                 setLoading(false);
             }
         }
-
         function updateProgressBar(percentage) {
             progressBarFill.style.width = `${Math.min(100, percentage)}%`;
         }
@@ -639,7 +704,7 @@
         }
 
         function buildReportPrompt() {
-             const conversationText = appState.conversationHistory
+            const conversationText = appState.conversationHistory
                 .map(msg => {
                     let text = msg.parts[0].text;
                     try {
@@ -652,7 +717,7 @@
                     return `${role}: ${text}`;
                 })
                 .join('\n\n');
-           
+
             const healthSummaryBlock = formatHealthReportForPrompt();
             const personaPrompt = appState.mode === 'deep-chat' 
                 ? '請你扮演「喵奶奶」的角色，用極度溫柔、慈祥且充滿鼓勵的口吻，像貓咪一樣慵懶溫暖地做出總結。在總結中，請適時使用 **粗體字** 來強調重點，並在結尾加上一個溫暖的表情符號，例如 ✨ 或 ❤️。語氣必須非常正面，巧妙地融入貓咪元素（例如：呼嚕、毛線球、曬太陽等）。'
@@ -660,7 +725,11 @@
 
             return `
                 你的角色: 你是一位專業的心理分析師，同時也是一位溫暖的貓咪夥伴。
-                你的任務: 根據以下的健康報告摘要與對話紀錄，產生一份結構化的分析報告，並將身心狀態串連在一起給出建議。
+                你的任務: 根據以下的健康報告摘要與對話紀錄，產生一份結構化的分析報告，並將身心狀態串連在一起給出建議。情緒分析需基於 VAD 模型（Valence-Arousal-Dominance），根據對話內容和健康數據動態生成 emotionVector 的值，範圍嚴格限制在 1-100：
+                - Valence（情緒正負）：反映對話中的正面（高分）或負面（低分）情緒。
+                - Arousal（喚醒度）：反映對話中的情緒強度，低分表示平靜，高分表示激動。
+                - Dominance（支配感）：反映對話中用戶的控制感，低分表示無力感，高分表示掌控感。
+                額外規則：掃描用戶對話中的極端或激進語言（如咒罵、威脅、極端負面詞如“恨死”“毀滅”“絕望”“暴力”等）。如果檢測到，斟酌扣分：降低 valence 10-20 分（更負面）、增加 arousal 10-20 分（更激動）、降低 dominance 10-20 分（更無力），視嚴重度調整（例如多次出現則扣更多），但確保值在 1-100 範圍內。
 
                 健康報告摘要:
                 ---
@@ -671,22 +740,21 @@
                 ---
                 ${conversationText}
                 ---
-                
+
                 總結的風格指南: ${personaPrompt}
 
                 請嚴格遵循以下的 JSON 格式回傳，不要有任何額外的文字或解釋:
                 {
-                  "summary": "一段約 100-150 字的溫暖總結，用第二人稱（你）的角度，同理並總結使用者的狀況。必須遵循上述的風格指南，使用 **粗體** 和表情符號 ✨。",
-                  "keywords": ["一個包含3-5個核心議題關鍵字的陣列"],
-                  "emotionVector": {
-                    "valence": 45,
-                    "arousal": 60,
-                    "dominance": 30
-                  }
+                "summary": "一段約 100-150 字的溫暖總結，用第二人稱（你）的角度，同理並總結使用者的狀況。必須遵循上述的風格指南，使用 **粗體** 和表情符號 ✨。",
+                "keywords": ["一個包含3-5個核心議題關鍵字的陣列"],
+                "emotionVector": {
+                    "valence": "1-100 的整數，基於對話情緒正負",
+                    "arousal": "1-100 的整數，基於對話情緒強度",
+                    "dominance": "1-100 的整數，基於對話控制感"
+                }
                 }
             `;
         }
-
         async function callChatAPI(systemInstruction) {
             const response = await fetch('{{ url_for("chat_api") }}', {
                 method: 'POST',

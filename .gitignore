@@ -212,3 +212,4 @@ __marimo__/
 
 
 firebase_credentials/service_account.json
+.DS_Store
