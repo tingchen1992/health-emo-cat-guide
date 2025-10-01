@@ -467,6 +467,7 @@
     {% set c = card or {} %}
     {% set default_image = 'https://images.unsplash.com/photo-1526336024174-e58f5cdd8e13?crop=entropy&cs=tinysrgb&fit=max&fm=jpg' %}
     {% set card_url = c.get('cat_image_source') or card_image_url or c.get('image_url') or default_image %} <!-- 🟡 0929修改：優先使用資料庫圖卡來源 -->
+    {% set proxy_card_url = card_url and url_for('proxy_image') ~ '?url=' ~ (card_url | urlencode) %}
     <div class="container">
         <header class="header">
             <div class="logo">
@@ -503,7 +504,7 @@
                 
                 <div class="cat-image-section">
                     <div class="cat-speech-bubble">{{ c.speech or '你的健康是我的關注！' }}</div>
-                    <img src="{{ card_url }}" alt="Your Cat" class="cat-image" />
+                    <img src="{{ card_url }}" alt="Your Cat" class="cat-image" {% if proxy_card_url %}data-proxy-src="{{ proxy_card_url }}"{% endif %} data-original-src="{{ card_url }}" />
                 </div>
                 
                 <div class="cat-name">{{ c.name or '專屬貓咪' }}</div>
@@ -640,7 +641,7 @@
             
             <!-- 操作按鈕 -->
             <div class="action-buttons">
-                <button class="btn btn-secondary" onclick="downloadCard()">
+                <button class="btn btn-secondary" onclick="downloadCard(event)">
                     <span class="material-symbols-outlined">download</span>
                     下載貓咪卡片
                 </button>
@@ -652,9 +653,11 @@
         </main>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" crossorigin="anonymous"></script>
     <script>
         const catName = {{ (c.name or "專屬貓咪") | tojson }};
         const shareMessage = {{ ("我在 Meow Yourself 遇見了 " ~ (c.name or "專屬貓咪") ~ "，提醒自己：" ~ (c.action or "持續照顧身心。")) | tojson }};
+        let isDownloading = false;
 
         // 顯示通知
         function showNotification(message, type = 'success') {
@@ -695,6 +698,8 @@
             const url = window.location.href;
             const btn = event.target.closest('.share-copy');
             const originalText = btn.innerHTML;
+            const originalBackground = getComputedStyle(btn).backgroundColor;
+            const originalColor = getComputedStyle(btn).color;
             const linkDisplay = document.getElementById('linkDisplay');
             const linkInput = document.getElementById('linkInput');
             
@@ -733,8 +738,8 @@
                 
                 setTimeout(() => {
                     btn.innerHTML = originalText;
-                    btn.style.background = 'rgba(255, 255, 255, 0.9)';
-                    btn.style.color = '#374151';
+                    btn.style.background = originalBackground;
+                    btn.style.color = originalColor;
                 }, 2000);
                 
             } catch (err) {
@@ -747,25 +752,145 @@
                 showNotification('請手動複製上方顯示的連結', 'error');
             }
         }
-        
+
+        async function swapToProxyImageIfNeeded(imageEl) {
+            if (!imageEl) {
+                return false;
+            }
+
+            const proxySrc = imageEl.dataset.proxySrc;
+            const originalSrc = imageEl.dataset.originalSrc || imageEl.getAttribute('src');
+            if (!proxySrc || proxySrc === originalSrc) {
+                return false;
+            }
+
+            try {
+                await new Promise((resolve, reject) => {
+                    const preload = new Image();
+                    preload.crossOrigin = 'anonymous';
+                    preload.onload = resolve;
+                    preload.onerror = reject;
+                    preload.src = proxySrc;
+                });
+
+                imageEl.dataset.originalCrossorigin = imageEl.getAttribute('crossorigin') || '';
+                imageEl.crossOrigin = 'anonymous';
+                imageEl.src = proxySrc;
+                if (typeof imageEl.decode === 'function') {
+                    try {
+                        await imageEl.decode();
+                    } catch (decodeError) {
+                        console.warn('Image decode warning:', decodeError);
+                    }
+                }
+                return true;
+            } catch (error) {
+                console.warn('Proxy image preload failed:', error);
+                return false;
+            }
+        }
+
+        async function restoreImageSource(imageEl) {
+            if (!imageEl) {
+                return;
+            }
+            const originalSrc = imageEl.dataset.originalSrc;
+            if (!originalSrc) {
+                return;
+            }
+
+            imageEl.src = originalSrc;
+            const originalCrossorigin = imageEl.dataset.originalCrossorigin;
+            if (originalCrossorigin) {
+                imageEl.crossOrigin = originalCrossorigin;
+            } else {
+                imageEl.removeAttribute('crossorigin');
+            }
+            delete imageEl.dataset.originalCrossorigin;
+            if (typeof imageEl.decode === 'function') {
+                try {
+                    await imageEl.decode();
+                } catch (decodeError) {
+                    console.warn('Image decode warning:', decodeError);
+                }
+            }
+        }
+
         // 下載卡片功能
-        function downloadCard() {
-            const btn = event.target.closest('.btn-secondary');
+        async function downloadCard(evt) {
+            if (isDownloading) {
+                showNotification('卡片正在準備中，請稍候。', 'success');
+                return;
+            }
+
+            const btn = evt.target.closest('.btn-secondary');
+            if (!btn) {
+                return;
+            }
+
             const originalText = btn.innerHTML;
-            btn.innerHTML = `<span class="material-symbols-outlined">check</span>${catName} 正在準備`;
+            const originalBackground = getComputedStyle(btn).backgroundColor;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span>下載準備中';
             btn.style.background = '#f59e0b';
-            
-            showNotification(`${catName} 的下載功能正在開發中...`, 'error');
-            
-            setTimeout(() => {
+
+            const cardElement = document.getElementById('cat-card');
+            const originalTransform = cardElement.style.transform;
+            const originalTransition = cardElement.style.transition;
+            isDownloading = true;
+
+            cardElement.style.transition = 'none';
+            cardElement.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
+
+            const catImage = cardElement.querySelector('.cat-image');
+            const swappedImage = await swapToProxyImageIfNeeded(catImage);
+
+            try {
+                if (typeof html2canvas !== 'function') {
+                    throw new Error('html2canvas library missing');
+                }
+
+                const canvas = await html2canvas(cardElement, {
+                    backgroundColor: null,
+                    useCORS: true,
+                    scale: Math.max(window.devicePixelRatio, 2)
+                });
+
+                const dataUrl = canvas.toDataURL('image/png');
+                const downloadLink = document.createElement('a');
+                const safeName = (catName || 'meow-card').replace(/[\/:*?"<>|]+/g, '_');
+                downloadLink.href = dataUrl;
+                downloadLink.download = `${safeName}.png`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+
+                showNotification(`${catName} 的卡片已下載完成！`, 'success');
+            } catch (error) {
+                console.error('卡片下載失敗:', error);
+                showNotification('下載失敗，圖片來源可能不支援跨網域，請稍後再試。', 'error');
+            } finally {
+                if (swappedImage) {
+                    await restoreImageSource(catImage);
+                }
+
+                cardElement.style.transform = originalTransform;
+                cardElement.style.transition = originalTransition;
+                isDownloading = false;
+                btn.disabled = false;
                 btn.innerHTML = originalText;
-                btn.style.background = 'rgba(255, 255, 255, 0.9)';
-            }, 2000);
+                btn.style.background = originalBackground;
+            }
         }
         
         // 卡片3D效果
         const card = document.querySelector('.cat-card');
         card.addEventListener('mousemove', (e) => {
+            if (isDownloading) {
+                card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
+                return;
+            }
+
             const rect = card.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
@@ -780,6 +905,10 @@
         });
         
         card.addEventListener('mouseleave', () => {
+            if (isDownloading) {
+                return;
+            }
+
             card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
         });
 

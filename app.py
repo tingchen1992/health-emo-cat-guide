@@ -1,4 +1,15 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    session,
+    flash,
+    jsonify,
+    Response,
+    abort,
+)
 import firebase_admin
 from firebase_admin import credentials, firestore, storage, auth
 from firebase_admin.exceptions import FirebaseError
@@ -461,7 +472,7 @@ def build_cat_card(report: dict, psychology: dict):
     name = (ai_payload or {}).get("name") or random.choice(style["names"])
     persona_key = _resolve_persona_key(health_value, mood_value)
     persona_label = CAT_PERSONA_METADATA.get(persona_key)
-    persona = (ai_payload or {}).get("persona") or persona_label or style["title"]
+    persona = persona_label or (ai_payload or {}).get("persona") or style["title"]
     speech = (ai_payload or {}).get("speech") or random.choice(style["speech"])
 
     model_keywords = (ai_payload or {}).get("keywords") or keywords
@@ -531,11 +542,27 @@ def render_cat_card_image(card: dict, user_id: str, cache_key: str | None = None
 
     persona_key = card.get("persona_key")
     if persona_key:
-        candidate_url = CAT_PERSONA_IMAGES.get(persona_key)
-        if candidate_url:
-            image_bytes, source_url = _download_image(candidate_url, timeout, max_bytes)
-            if not image_bytes:
-                logging.warning("Persona image download failed for %s", persona_key)
+        persona_entry = CAT_PERSONA_IMAGES.get(persona_key)
+        if persona_entry:
+            local_path = persona_entry.get("local_path")
+            if local_path and Path(local_path).exists():
+                try:
+                    image_bytes = Path(local_path).read_bytes()
+                    static_path = persona_entry.get("static_path")
+                    if static_path:
+                        try:
+                            source_url = url_for("static", filename=static_path, _external=True)
+                        except RuntimeError:
+                            source_url = f"/static/{static_path}"
+                except Exception as exc:
+                    logging.warning("Failed to load local persona image %s: %s", local_path, exc)
+                    image_bytes = None
+            else:
+                candidate_url = persona_entry.get("url") if isinstance(persona_entry, dict) else persona_entry
+                if candidate_url:
+                    image_bytes, source_url = _download_image(candidate_url, timeout, max_bytes)
+                    if not image_bytes:
+                        logging.warning("Persona image download failed for %s", persona_key)
 
     if not image_bytes:
         image_bytes, source_url = fetch_cat_image(timeout=timeout, max_bytes=max_bytes)
@@ -634,28 +661,27 @@ JSON_RESPONSE_CONFIG = genai_types.GenerateContentConfig(
 )
 
 # 🟡 0929修改：貓咪九宮格對應既有圖庫
+_CAT_LOCAL_IMAGE_DIR = CAT_CARD_DIR / "images" / "cats"
+_CAT_LOCAL_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+
 CAT_PERSONA_IMAGES = {
-    "A1": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FA1.png?alt=media&token=58d97409-e570-444c-8ed7-e647b1ec182b",
-    "A2": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FA2.png?alt=media&token=3f2095f2-80d7-48a9-97e5-5b42afc4cabc",
-    "A3": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FA3.png?alt=media&token=beaa5879-4ff1-41d2-b4d6-e35748f0f6b5",
-    "B1": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FB1.png?alt=media&token=6083faac-6e23-45c2-b8d6-bac3e7a95b3b",
-    "B2": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FB2.png?alt=media&token=807c6e80-c75e-4ded-bb63-3792fcb6cff4",
-    "B3": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FB3.png?alt=media&token=d39495b1-67ef-4b6d-8fd3-8b193ee434aa",
-    "C1": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FC1.png?alt=media&token=146a237e-4d49-4dd2-bafc-2d2b84347d0d",
-    "C2": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FC2.png?alt=media&token=1ba9e8ec-6de0-4579-8a32-d0b7fff6bf3a",
-    "C3": "https://firebasestorage.googleapis.com/v0/b/health-emo-cat-guide.firebasestorage.app/o/cat_cards%2FC3.png?alt=media&token=22d41015-dae2-4c19-a753-b9a4b4957843",
+    key: {
+        "local_path": _CAT_LOCAL_IMAGE_DIR / f"{key}.png",
+        "static_path": f"cat_cards/images/cats/{key}.png",
+    }
+    for key in ("A1", "A2", "A3", "B1", "B2", "B3", "C1", "C2", "C3")
 }
 
 CAT_PERSONA_METADATA = {
-    "A1": "布偶貓（暖心貓）",
-    "A2": "橘貓（晴天貓）",
-    "A3": "俄羅斯藍貓（活力貓）",
-    "B1": "波斯貓（小病貓）",
-    "B2": "三花貓（日常貓）",
-    "B3": "英國短毛銀漸層（外強內柔貓）",
-    "C1": "摺耳貓（疲憊貓）",
-    "C2": "黑貓（悶悶貓）",
-    "C3": "暹羅貓（壓力貓）",
+    "A1": "布偶貓｜心理樂觀・身體指標待加油",
+    "A2": "橘貓｜情緒穩定・生活節奏良好",
+    "A3": "俄羅斯藍貓｜活力均衡・能量充沛",
+    "B1": "波斯貓｜身心提醒・適度調養",
+    "B2": "三花貓｜日常波動・持續照顧",
+    "B3": "銀漸層貓｜外強內柔・記得舒壓",
+    "C1": "折耳貓｜雙重負擔・先好好休息",
+    "C2": "黑貓｜心理調適中・需要陪伴",
+    "C3": "暹羅貓｜內在壓力大・身體仍有力",
 }
 
 FONT_CANDIDATES = [
@@ -704,6 +730,34 @@ except Exception as e:
 # @app.before_first_request
 # def _print_url_map():
 #    logging.debug("URL Map:\n" + "\n".join([str(r) for r in app.url_map.iter_rules()]))
+
+# 圖片代理：避免跨域限制影響下載圖卡
+@app.route("/proxy_image")
+def proxy_image():
+    image_url = request.args.get("url", "")
+    safe_url = _safe_url(image_url)
+    if not safe_url:
+        abort(400, description="Invalid image URL")
+
+    try:
+        upstream = requests.get(safe_url, timeout=6)
+        upstream.raise_for_status()
+    except requests.RequestException as exc:
+        logging.warning("Image proxy fetch failed: %s", exc)
+        abort(502, description="Image fetch failed")
+
+    content_type = upstream.headers.get("Content-Type", "").lower()
+    if not content_type.startswith("image"):
+        detected = imghdr.what(None, upstream.content)
+        if detected:
+            content_type = f"image/{detected}"
+        else:
+            abort(415, description="Unsupported media type")
+
+    response = Response(upstream.content, content_type=content_type or "image/png")
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
 
 # 首頁
 @app.route("/")
