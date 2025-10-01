@@ -1283,6 +1283,7 @@ def generate_card():
         )
 
         use_cache = request.args.get("nocache") != "1"
+        cache_key_current = f"{latest_report.get('id')}_{latest_test.get('id')}"
         cache_entry = session.get("cat_card_cache") if use_cache else None
         card_payload = None
         image_filename = None
@@ -1291,7 +1292,8 @@ def generate_card():
         if cache_entry:
             cache_path = CAT_CARD_DIR / cache_entry.get("filename", "")
             cache_age = time.time() - cache_entry.get("timestamp", 0)
-            if cache_path.exists() and cache_age < 3600:
+            cache_key_match = cache_entry.get("cache_key") == cache_key_current  # 🟡 1001修改01：僅當最新報告/測驗與快取一致時才沿用
+            if cache_path.exists() and cache_age < 3600 and cache_key_match:
                 logging.debug("Using cached cat card for user %s", user_id)
                 card_payload = cache_entry.get("card", {})
                 image_filename = cache_entry.get("filename")
@@ -1301,13 +1303,14 @@ def generate_card():
             card_payload = build_cat_card(latest_report, latest_test)
             if warnings:
                 card_payload["warnings"] = warnings
-            cache_key = f"{latest_report.get('id')}_{latest_test.get('id')}"
+            cache_key = cache_key_current
             image_filename, cat_source = render_cat_card_image(card_payload, user_id, cache_key=cache_key)
             session["cat_card_cache"] = {
                 "timestamp": time.time(),
                 "filename": image_filename,
                 "cat_source": cat_source,
                 "card": card_payload,
+                "cache_key": cache_key,  # 🟡 1001修改01：記錄本次使用的報告/測驗組合避免取用過期圖卡
             }
 
         card_image_url = url_for("static", filename=f"cat_cards/{image_filename}")

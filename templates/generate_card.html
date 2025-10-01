@@ -309,6 +309,11 @@
             background: rgba(255, 255, 255, 0.9);
             color: #374151;
         }
+
+        /* 🟡 0930 修改：提供可重複使用的隱藏樣式，避免刪除原始區塊 */
+        .hidden-section {
+            display: none;
+        }
         
         /* 操作按鈕 */
         .action-buttons {
@@ -477,9 +482,9 @@
                 <a href="{{ url_for('home') }}" class="nav-item">
                     <span class="material-symbols-outlined">home</span> 首頁
                 </a>
-                <a href="#" class="nav-item">
+                <!--<a href="#" class="nav-item">
                     <span class="material-symbols-outlined">pets</span> 我的貓咪
-                </a>
+                </a>-->
             </nav>
         </header>
         
@@ -539,13 +544,15 @@
                 <div class="ai-signature">🤖 AI 生成專屬健康伙伴</div>
             </div>
             {% if c.cat_image_source %}
-            <p style="font-size: 12px; color: rgba(255,255,255,0.75); margin-top: -12px;">
+            <!-- 🟡 0930 修改：依需求隱藏圖片來源文字於前端，保留原有資料 -->
+            <p class="hidden-section" style="font-size: 12px; color: rgba(255,255,255,0.75); margin-top: -12px;">
                 圖片來源：<a href="{{ c.cat_image_source }}" target="_blank" rel="noopener noreferrer nofollow" style="color:#ffeaa7;">{{ c.cat_image_source }}</a>
             </p>
             {% endif %}
             
             {% if report %}
-            <div class="info-card">
+            <!-- 🟡 0930 修改：依需求暫時隱藏健康提醒內容於前端 -->
+            <div class="info-card hidden-section">
                 <h3>健康提醒</h3>
                 <ul>
                     {% set warning_list = report.get('_display_warnings') or report.get('health_warnings') %}
@@ -559,7 +566,8 @@
                 </ul>
             </div>
 
-            <div class="info-card">
+            <!-- 🟡 0930 修改：依需求暫時隱藏最新健檢摘要於前端 -->
+            <div class="info-card hidden-section">
                 <h3>最新健檢摘要</h3>
                 <p><span class="info-label">健康分數：</span>{{ report.get('health_score') if report.get('health_score') is not none else '尚未評估' }}</p>
                 {% if report.get('report_date') %}
@@ -588,7 +596,8 @@
                 <p><span class="info-label">摘要：</span>{{ psychology.get('summary') }}</p>
                 {% endif %}
                 {% if psychology.get('keywords') %}
-                <p><span class="info-label">關鍵字：</span>{{ psychology.get('keywords') | join('、') }}</p>
+                <!-- 🟡 0930 修改：保留資料但隱藏情緒測驗關鍵字於前端 -->
+                <p class="hidden-section"><span class="info-label">關鍵字：</span>{{ psychology.get('keywords') | join('、') }}</p>
                 {% endif %}
             </div>
             {% endif %}
@@ -601,7 +610,8 @@
             </div>
             
             <!-- 分享區域 -->
-            <div class="share-section">
+            <!-- 🟡 1001修改02：依需求暫時隱藏分享區塊於前端，維持原有功能碼 -->
+            <div class="share-section hidden-section">
                 <div class="share-title">分享你的貓咪夥伴</div>
                 <div class="share-buttons">
                     <a href="#" class="share-btn share-line" onclick="shareToLine()">

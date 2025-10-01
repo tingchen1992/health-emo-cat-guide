@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 old_app.py
 static/cat_cards
+.DS_Store
+static/.DS_Store
 
 # C extensions
 *.so
